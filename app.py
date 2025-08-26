@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 # Retro-Futuristic CSS Styling
-st.markdown("""
+st.markdown(""")
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap');
     
