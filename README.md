@@ -76,7 +76,7 @@ A powerful web application that scrapes and analyzes reviews from multiple Googl
 ### Step 1: Add App URLs
 In the sidebar, paste Google Play Store URLs (one per line):
 ```
-https://play.google.com/store/apps/details?id=in.workindia.nileshdungarwal.workindiaandroid
+https://play.google.com/store/apps/details?id=xyz
 https://play.google.com/store/apps/details?id=com.whatsapp
 ```
 
