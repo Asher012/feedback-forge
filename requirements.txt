@@ -1,0 +1,6 @@
+streamlit==1.28.1
+google-play-scraper==3.1.2
+pandas==2.1.1
+textblob==0.17.1
+plotly==5.17.0
+requests==2.31.0
