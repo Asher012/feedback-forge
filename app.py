@@ -8,11 +8,12 @@ from datetime import datetime, timedelta
 import re
 from collections import Counter
 import numpy as np
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
-import seaborn as sns
-from io import BytesIO
-import base64
+try:
+    from wordcloud import WordCloud
+    import matplotlib.pyplot as plt
+    WORDCLOUD_AVAILABLE = True
+except ImportError:
+    WORDCLOUD_AVAILABLE = False
 
 # Page Configuration
 st.set_page_config(
@@ -23,15 +24,9 @@ st.set_page_config(
 )
 
 # Retro-Futuristic CSS Styling
-st.markdown(""")
+st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap');
-    
-    .main-container {
-        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #16213e 100%);
-        color: #00ff88;
-        font-family: 'Rajdhani', sans-serif;
-    }
     
     .retro-header {
         background: linear-gradient(90deg, #0f3460, #16537e, #00ff88);
@@ -46,22 +41,6 @@ st.markdown(""")
         overflow: hidden;
     }
     
-    .retro-header::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        animation: sweep 3s infinite;
-    }
-    
-    @keyframes sweep {
-        0% { left: -100%; }
-        100% { left: 100%; }
-    }
-    
     .cyber-title {
         font-family: 'Orbitron', monospace;
         font-size: 3rem;
@@ -74,3 +53,26 @@ st.markdown(""")
     .cyber-subtitle {
         font-size: 1.2rem;
         color: #64ffda;
+        margin-top: 0.5rem;
+        font-weight: 300;
+    }
+    
+    .creator-tag {
+        position: absolute;
+        bottom: 10px;
+        right: 20px;
+        background: rgba(0, 255, 136, 0.1);
+        padding: 5px 15px;
+        border-radius: 20px;
+        border: 1px solid #00ff88;
+        font-size: 0.9rem;
+        color: #00ff88;
+    }
+    
+    .terminal-box {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+        color: #00ff88;
