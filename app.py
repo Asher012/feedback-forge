@@ -551,23 +551,150 @@ if 'comparison_mode' not in st.session_state:
     st.session_state.comparison_mode = False
 
 # Navigation Functions
+# Navigation handler
 def navigate_to(page):
     st.session_state.page = page
-    st.rerun()
+    st.experimental_rerun()
 
 def show_navigation():
-    st.markdown(f"""
-    <div class="main-nav">
-        <div class="nav-container">
-            <div class="brand">Feedback Forge</div>
-            <div class="nav-links">
-                <span class="nav-link {'active' if st.session_state.page == 'home' else ''}" id="nav-home">Home</span>
-                <span class="nav-link {'active' if st.session_state.page == 'about' else ''}" id="nav-about">About</span>
-                <span class="nav-link {'active' if st.session_state.page == 'analysis' else ''}" id="nav-analysis">Analysis</span>
-            </div>
-        </div>
+    st.markdown("""
+    <style>
+        .nav-container {
+            display: flex;
+            gap: 24px;
+            justify-content: flex-end;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e6e6e6;
+            background-color: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        .nav-button {
+            font-family: 'Source Serif Pro', serif;
+            font-size: 16px;
+            font-weight: 500;
+            color: #242424;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: 0.2s ease;
+        }
+        .nav-button:hover {
+            color: #1a8917;
+            background-color: #f8f9fa;
+        }
+        .nav-button-active {
+            color: #1a8917;
+            font-weight: 600;
+            background-color: #f0fff4;
+        }
+        .nav-brand {
+            font-family: 'Source Serif Pro', serif;
+            font-weight: 700;
+            font-size: 28px;
+            color: #1a8917;
+            margin-right: auto;
+            cursor: pointer;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="nav-container">', unsafe_allow_html=True)
+    st.markdown(f'<div class="nav-brand" onclick="window.location.reload();">Feedback Forge</div>', unsafe_allow_html=True)
+
+    # Buttons for navigation
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col1:
+        if st.button("Home", key="nav_home"):
+            navigate_to('home')
+    with col2:
+        if st.button("About", key="nav_about"):
+            navigate_to('about')
+    with col3:
+        if st.button("Analysis", key="nav_analysis"):
+            navigate_to('analysis')
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Highlight active button using extra CSS injection
+    active_page = st.session_state.get('page', 'home')
+    js_code = f"""
+    <script>
+    document.querySelectorAll('.nav-button').forEach((el) => el.classList.remove('nav-button-active'));
+    const btn = [...document.querySelectorAll('button')].find(b => b.textContent === '{active_page.capitalize()}');
+    if(btn) btn.classList.add('nav-button-active');
+    </script>
+    """
+    # Note: Streamlit might block inline JS, so the active state is better handled in Python styles as below
+
+def show_navigation_simple():
+    st.markdown("""
+    <style>
+        .nav-container {
+            display: flex;
+            gap: 24px;
+            justify-content: flex-end;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e6e6e6;
+            background-color: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        .nav-button {
+            font-family: 'Source Serif Pro', serif;
+            font-size: 16px;
+            font-weight: 500;
+            color: #242424;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: 0.2s ease;
+        }
+        .nav-button:hover {
+            color: #1a8917;
+            background-color: #f8f9fa;
+        }
+        .nav-button-active {
+            color: #1a8917;
+            font-weight: 600;
+            background-color: #f0fff4;
+        }
+        .nav-brand {
+            font-family: 'Source Serif Pro', serif;
+            font-weight: 700;
+            font-size: 28px;
+            color: #1a8917;
+            margin-right: auto;
+            cursor: pointer;
+        }
+    </style>
+    <div class="nav-container">
+        <div class="nav-brand" onclick="window.location.reload();">Feedback Forge</div>
+        <button class="nav-button { 'nav-button-active' if st.session_state.page=='home' else '' }" onclick="window.location.reload()">Home</button>
+        <button class="nav-button { 'nav-button-active' if st.session_state.page=='about' else '' }" onclick="window.location.reload()">About</button>
+        <button class="nav-button { 'nav-button-active' if st.session_state.page=='analysis' else '' }" onclick="window.location.reload()">Analysis</button>
     </div>
     """, unsafe_allow_html=True)
+
+# In your main script, call:
+# show_navigation()
+
+# Handling navigation using buttons in Streamlit (simplified example):
+nav_col1, nav_col2, nav_col3 = st.columns(3)
+with nav_col1:
+    if st.button("Home"):
+        navigate_to('home')
+with nav_col2:
+    if st.button("About"):
+        navigate_to('about')
+with nav_col3:
+    if st.button("Analysis"):
+        navigate_to('analysis')
 
 # Helper Functions
 def extract_package_name(url):
