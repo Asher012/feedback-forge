@@ -12,7 +12,7 @@ import json
 
 # Page Configuration
 st.set_page_config(
-    page_title="TerminalAnalyzer Pro", 
+    page_title="Play.App Analyzer", 
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -1728,7 +1728,7 @@ elif st.session_state.page == 'analysis':
             st.download_button(
                 "DOWNLOAD EXECUTIVE SUMMARY",
                 data=summary_csv,
-                file_name=f"TerminalAnalyzer_Summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                file_name=f"Analyzer_Summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv"
             )
         
@@ -1740,13 +1740,13 @@ st.markdown("""
            border-top: 2px solid #30363d; background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);">
     <div style="font-family: 'Orbitron', monospace; color: #00ff41; font-size: 1.3rem; 
                font-weight: 700; margin-bottom: 15px;">
-        TERMINALANALYZER PRO v3.0
+        PLAY.APP ANALYZER
     </div>
     <div style="margin-bottom: 15px; font-size: 1.1rem;">
         Professional Review Intelligence Platform | Created by <strong style="color: #00ff41;">Ayush Pandey</strong>
     </div>
     <div style="font-size: 1rem; color: #8b949e; line-height: 1.6;">
-        Advanced AI Analytics • Terminal Aesthetics • Professional Intelligence<br>
+        Advanced AI Analytics • Professional Intelligence<br>
         Transform Review Data Into Strategic Business Advantage
     </div>
 </div>
