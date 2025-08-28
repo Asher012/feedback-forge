@@ -9,315 +9,455 @@ import re
 from collections import Counter
 import numpy as np
 import json
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from sklearn.decomposition import LatentDirichletAllocation
+from scipy import stats
+import seaborn as sns
+from wordcloud import WordCloud
+import base64
+from io import BytesIO
+import time
 
 # Page Configuration
 st.set_page_config(
-    page_title="Feedbacks Forge", 
-    page_icon=None,
+    page_title="Feedbacks Forge Pro", 
+    page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Medium-inspired Professional CSS
+# Advanced CSS with Glass-morphism and Modern Design
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap');
     
-    .stApp {
-        background: #ffffff;
-        color: #292929;
-        font-family: 'Inter', sans-serif;
+    :root {
+        --primary-color: #6366f1;
+        --secondary-color: #8b5cf6;
+        --accent-color: #06b6d4;
+        --success-color: #10b981;
+        --warning-color: #f59e0b;
+        --error-color: #ef4444;
+        --dark-bg: #0f172a;
+        --light-bg: #ffffff;
+        --glass-bg: rgba(255, 255, 255, 0.1);
+        --glass-border: rgba(255, 255, 255, 0.2);
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --shadow-light: rgba(0, 0, 0, 0.1);
+        --shadow-medium: rgba(0, 0, 0, 0.15);
+        --shadow-strong: rgba(0, 0, 0, 0.25);
+        --border-radius: 16px;
+        --border-radius-lg: 24px;
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        --gradient-secondary: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+        --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        --gradient-error: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     }
     
+    .stApp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
+        min-height: 100vh;
+    }
+    
+    /* Glass-morphism Header */
     .header-container {
-        background: #ffffff;
-        border-radius: 0;
-        padding: 40px 0;
-        margin: 0 0 30px 0;
-        color: #292929;
-        box-shadow: none;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--border-radius-lg);
+        padding: 60px 40px;
+        margin: 20px 0 40px 0;
+        text-align: center;
         position: relative;
         overflow: hidden;
-        border-bottom: 1px solid #e6e6e6;
+        box-shadow: 0 20px 40px var(--shadow-medium);
+    }
+    
+    .header-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: conic-gradient(from 0deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        animation: rotate 20s linear infinite;
+        z-index: -1;
+    }
+    
+    @keyframes rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
     
     .app-title {
-        font-size: 2.8rem;
-        font-weight: 700;
-        margin: 10px 0 5px 0;
-        color: #000000;
-        letter-spacing: -0.5px;
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: 900;
+        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0 0 20px 0;
+        letter-spacing: -2px;
+        text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
     
     .app-subtitle {
-        font-size: 1.2rem;
-        color: #757575;
-        margin-bottom: 15px;
-        font-weight: 400;
+        font-size: 1.4rem;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 30px;
+        font-weight: 300;
+        letter-spacing: 0.5px;
+    }
+    
+    .version-badge {
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        background: var(--gradient-primary);
+        color: white;
+        padding: 8px 20px;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
     }
     
     .creator-badge {
         position: absolute;
-        bottom: 20px;
-        right: 30px;
-        background: #f9f9f9;
-        padding: 8px 16px;
-        border-radius: 4px;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        color: white;
+        padding: 10px 24px;
+        border-radius: 50px;
         font-size: 0.9rem;
         font-weight: 500;
-        color: #757575;
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
     
-    /* Enhanced Buttons */
-    .stButton>button {
-        background: #000000;
+    /* Advanced Button Styling */
+    .stButton > button {
+        background: var(--gradient-primary);
         color: white;
         border: none;
-        border-radius: 4px;
-        padding: 12px 24px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        box-shadow: none;
+        border-radius: var(--border-radius);
+        padding: 16px 32px;
+        font-weight: 600;
+        font-size: 1rem;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        transition: var(--transition);
+        box-shadow: 0 8px 30px rgba(99, 102, 241, 0.3);
+        position: relative;
+        overflow: hidden;
     }
     
-    .stButton>button:hover {
-        transform: none;
-        box-shadow: none;
-        background: #292929;
+    .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
     }
     
-    /* Content Sections */
-    .content-section {
-        background: white;
-        border-radius: 0;
-        padding: 25px 0;
+    .stButton > button:hover::before {
+        left: 100%;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(99, 102, 241, 0.4);
+    }
+    
+    /* Glass Card Components */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--border-radius);
+        padding: 30px;
         margin: 20px 0;
-        box-shadow: none;
-        border-left: none;
+        box-shadow: 0 8px 32px var(--shadow-light);
+        transition: var(--transition);
+        position: relative;
     }
     
-    .section-header {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #000000;
-        margin-bottom: 25px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid #e6e6e6;
+    .glass-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 40px var(--shadow-medium);
+        border-color: rgba(255, 255, 255, 0.3);
     }
     
-    /* Metrics Grid */
+    .glass-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+    }
+    
+    /* Advanced Metrics Grid */
     .metrics-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin: 30px 0;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        margin: 40px 0;
     }
     
     .metric-card {
-        background: white;
-        border-radius: 0;
-        padding: 25px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--border-radius);
+        padding: 32px 24px;
         text-align: center;
-        transition: all 0.3s ease;
-        box-shadow: none;
-        border: 1px solid #e6e6e6;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: var(--gradient-primary);
+        border-radius: var(--border-radius);
+        z-index: -1;
+        opacity: 0;
+        transition: var(--transition);
     }
     
     .metric-card:hover {
-        transform: none;
-        box-shadow: none;
+        transform: translateY(-8px) scale(1.02);
+        color: white;
+    }
+    
+    .metric-card:hover::before {
+        opacity: 1;
     }
     
     .metric-value {
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #000000;
-        margin-bottom: 8px;
+        font-size: 3rem;
+        font-weight: 800;
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 12px;
+        font-family: 'JetBrains Mono', monospace;
     }
     
     .metric-label {
-        color: #757575;
-        font-size: 0.9rem;
+        font-size: 1rem;
         font-weight: 500;
+        color: rgba(255, 255, 255, 0.8);
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     
-    /* Review Cards */
+    /* Advanced Review Cards */
     .review-card {
-        background: white;
-        border-radius: 0;
-        padding: 25px;
-        margin: 20px 0;
-        transition: all 0.3s ease;
-        box-shadow: none;
-        border: 1px solid #e6e6e6;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: var(--border-radius);
+        padding: 32px;
+        margin: 24px 0;
+        box-shadow: 0 8px 40px var(--shadow-light);
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .review-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--gradient-primary);
+        transform: scaleY(0);
+        transition: var(--transition);
     }
     
     .review-card:hover {
-        box-shadow: none;
+        transform: translateX(8px);
+        box-shadow: 0 12px 50px var(--shadow-medium);
+    }
+    
+    .review-card:hover::before {
+        transform: scaleY(1);
     }
     
     .review-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #f1f1f1;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid rgba(99, 102, 241, 0.1);
     }
     
     .review-user {
-        color: #000000;
-        font-weight: 600;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: var(--text-primary);
     }
     
     .review-rating {
         display: flex;
         align-items: center;
-        gap: 8px;
-    }
-    
-    .star-rating {
-        color: #000000;
+        gap: 12px;
         font-size: 1.1rem;
     }
     
+    .star-rating {
+        color: #fbbf24;
+        font-size: 1.4rem;
+        text-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);
+    }
+    
     .review-content {
-        color: #292929;
-        line-height: 1.7;
-        margin: 15px 0;
+        color: var(--text-primary);
+        line-height: 1.8;
         font-size: 1.05rem;
+        margin: 20px 0;
     }
     
     .review-meta {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        color: #757575;
-        font-size: 0.85rem;
-        margin-top: 15px;
-        padding-top: 10px;
-        border-top: 1px solid #f1f1f1;
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid rgba(99, 102, 241, 0.1);
     }
     
+    /* Enhanced Sentiment Badges */
     .sentiment-badge {
-        padding: 5px 12px;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        font-weight: 600;
+        padding: 8px 16px;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-2px); }
     }
     
     .sentiment-positive {
-        background: #f2f8f0;
-        color: #2e7d32;
+        background: var(--gradient-success);
+        color: white;
     }
     
     .sentiment-negative {
-        background: #fdf0f0;
-        color: #d32f2f;
+        background: var(--gradient-error);
+        color: white;
     }
     
     .sentiment-neutral {
-        background: #fef9e7;
-        color: #ed6c02;
+        background: var(--gradient-warning);
+        color: white;
     }
     
-    /* AI Insights */
+    /* AI Insights with Advanced Styling */
     .ai-insights {
-        background: #f9f9f9;
-        border-radius: 0;
-        padding: 30px;
-        margin: 30px 0;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--border-radius-lg);
+        padding: 40px;
+        margin: 40px 0;
         position: relative;
     }
     
     .insight-item {
-        background: white;
-        border-radius: 0;
-        padding: 20px;
-        margin: 15px 0;
-        transition: all 0.3s ease;
-        box-shadow: none;
-        border: 1px solid #e6e6e6;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: var(--border-radius);
+        padding: 28px;
+        margin: 20px 0;
+        box-shadow: 0 8px 32px var(--shadow-light);
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .insight-item::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: var(--gradient-primary);
+    }
+    
+    .insight-item.warning::before {
+        background: var(--gradient-error);
+    }
+    
+    .insight-item.positive::before {
+        background: var(--gradient-success);
     }
     
     .insight-item:hover {
-        transform: none;
-        box-shadow: none;
+        transform: translateY(-4px);
+        box-shadow: 0 16px 40px var(--shadow-medium);
     }
     
-    .insight-item.warning {
-        border-left: 4px solid #d32f2f;
-    }
-    
-    .insight-item.positive {
-        border-left: 4px solid #2e7d32;
-    }
-    
-    /* Export Cards */
-    .export-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 25px;
-        margin: 30px 0;
-    }
-    
-    .export-card {
-        background: white;
-        border-radius: 0;
-        padding: 30px;
-        text-align: center;
-        transition: all 0.3s ease;
-        box-shadow: none;
-        border: 1px solid #e6e6e6;
-    }
-    
-    .export-card:hover {
-        transform: none;
-        box-shadow: none;
-    }
-    
-    .export-title {
-        color: #000000;
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin-bottom: 15px;
-    }
-    
-    .export-desc {
-        color: #757575;
-        line-height: 1.6;
-        margin-bottom: 20px;
-    }
-    
-    /* Progress Section */
+    /* Progress Animations */
     .progress-section {
-        background: white;
-        border-radius: 0;
-        padding: 30px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--border-radius);
+        padding: 40px;
         text-align: center;
-        margin: 20px 0;
-        box-shadow: none;
-        border: 1px solid #e6e6e6;
+        margin: 30px 0;
+        position: relative;
     }
     
-    .status-card {
-        background: #f9f9f9;
-        border-radius: 0;
-        padding: 20px;
-        margin: 15px 0;
-        border: 1px solid #e6e6e6;
-    }
-    
-    /* Loading Spinner */
     .loading-spinner {
         display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid rgba(0, 0, 0, 0.1);
-        border-top: 3px solid #000000;
+        width: 32px;
+        height: 32px;
+        border: 4px solid rgba(99, 102, 241, 0.3);
+        border-top: 4px solid #6366f1;
         border-radius: 50%;
         animation: spin 1s linear infinite;
-        margin-right: 10px;
+        margin-right: 16px;
     }
     
     @keyframes spin {
@@ -325,613 +465,1330 @@ st.markdown("""
         100% { transform: rotate(360deg); }
     }
     
-    /* Input Styling */
-    .stTextArea textarea {
-        border-radius: 4px;
-        border: 1px solid #e6e6e6;
-        padding: 12px;
+    /* Export Section */
+    .export-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 30px;
+        margin: 40px 0;
     }
     
-    .stTextArea textarea:focus {
-        border-color: #000000;
-        box-shadow: 0 0 0 1px #000000;
+    .export-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: var(--border-radius);
+        padding: 40px 32px;
+        text-align: center;
+        box-shadow: 0 8px 32px var(--shadow-light);
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .export-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--gradient-primary);
+        transform: scaleX(0);
+        transition: var(--transition);
+    }
+    
+    .export-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 50px var(--shadow-medium);
+    }
+    
+    .export-card:hover::before {
+        transform: scaleX(1);
+    }
+    
+    .export-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .export-desc {
+        color: var(--text-secondary);
+        line-height: 1.7;
+        margin-bottom: 28px;
+        font-size: 1rem;
+    }
+    
+    /* Theme Toggle */
+    .theme-toggle {
+        position: fixed;
+        top: 30px;
+        right: 30px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50px;
+        padding: 12px 20px;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    
+    .theme-toggle:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.05);
+    }
+    
+    /* Input Styling */
+    .stTextArea textarea, .stTextInput input {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid rgba(99, 102, 241, 0.2);
+        border-radius: var(--border-radius);
+        padding: 16px;
+        font-size: 1rem;
+        transition: var(--transition);
+    }
+    
+    .stTextArea textarea:focus, .stTextInput input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        background: white;
     }
     
     /* Selectbox Styling */
     .stSelectbox div[data-baseweb="select"] {
-        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: var(--border-radius);
+        border: 2px solid rgba(99, 102, 241, 0.2);
     }
     
     /* Slider Styling */
-    .stSlider div[data-baseweb="slider"] {
-        color: #000000;
-    }
-    
-    /* Checkbox Styling */
-    .stCheckbox label {
-        font-weight: 500;
-    }
-    
-    /* Expander Styling */
-    .streamlit-expanderHeader {
-        font-weight: 600;
-        color: #000000;
+    .stSlider .stSlider > div > div > div {
+        background: var(--gradient-primary);
     }
     
     /* Custom Scrollbar */
     ::-webkit-scrollbar {
-        width: 8px;
+        width: 12px;
     }
     
     ::-webkit-scrollbar-track {
-        background: #f1f1f1;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
     }
     
     ::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 4px;
+        background: var(--gradient-primary);
+        border-radius: 6px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
     }
     
     ::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
+        background: var(--gradient-secondary);
+        background-clip: padding-box;
     }
     
     /* Mobile Responsive */
     @media (max-width: 768px) {
         .app-title {
-            font-size: 2.2rem;
+            font-size: 2.5rem;
+        }
+        
+        .header-container {
+            padding: 40px 20px;
         }
         
         .metrics-grid {
             grid-template-columns: 1fr;
         }
         
-        .metric-value {
-            font-size: 1.8rem;
-        }
-        
         .export-container {
             grid-template-columns: 1fr;
         }
+        
+        .glass-card {
+            padding: 20px;
+        }
+    }
+    
+    /* Advanced Animations */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .fade-in-up {
+        animation: fadeInUp 0.6s ease-out;
+    }
+    
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    .slide-in-right {
+        animation: slideInRight 0.6s ease-out;
+    }
+    
+    /* Advanced Data Viz Enhancements */
+    .viz-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: var(--border-radius);
+        padding: 30px;
+        margin: 20px 0;
+        box-shadow: 0 8px 32px var(--shadow-light);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Status Indicators */
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-processing {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    
+    .status-complete {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    
+    .status-error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state
+# Enhanced session state initialization
 if 'page' not in st.session_state:
     st.session_state.page = 'home'
 if 'comparison_mode' not in st.session_state:
     st.session_state.comparison_mode = False
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'light'
+if 'analysis_history' not in st.session_state:
+    st.session_state.analysis_history = []
 
-# Helper Functions (remain the same as in the original code)
+# Advanced Helper Functions
+
 def extract_package_name(url):
+    """Enhanced package name extraction with validation"""
     if "id=" in url:
-        return url.split("id=")[1].split("&")[0].strip()
+        package = url.split("id=")[1].split("&")[0].strip()
+        # Validate package name format
+        if re.match(r'^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$', package):
+            return package
     return None
 
 def analyze_sentiment_advanced(text):
+    """Advanced sentiment analysis with emotional intensity and aspects"""
     if pd.isna(text) or text.strip() == "":
-        return "Neutral", 0.0, 0.0, "Unknown"
+        return "Neutral", 0.0, 0.0, "Unknown", {}, 0.0
     
     blob = TextBlob(str(text))
     polarity = blob.sentiment.polarity
     subjectivity = blob.sentiment.subjectivity
     
-    if polarity > 0.4:
-        return "Positive", polarity, subjectivity, "Highly Positive"
+    # Emotional intensity calculation
+    emotional_words = {
+        'love': 2.0, 'hate': -2.0, 'amazing': 1.8, 'terrible': -1.8,
+        'excellent': 1.7, 'awful': -1.7, 'perfect': 1.6, 'horrible': -1.6,
+        'fantastic': 1.5, 'disgusting': -1.5, 'wonderful': 1.4, 'annoying': -1.2
+    }
+    
+    intensity = 0.0
+    text_lower = text.lower()
+    for word, weight in emotional_words.items():
+        if word in text_lower:
+            intensity += weight
+    
+    # Normalize intensity
+    intensity = max(-2.0, min(2.0, intensity))
+    
+    # Aspect-based analysis
+    aspects = {
+        'performance': any(word in text_lower for word in ['fast', 'slow', 'speed', 'lag', 'performance', 'responsive']),
+        'ui_design': any(word in text_lower for word in ['design', 'interface', 'ui', 'layout', 'beautiful', 'ugly']),
+        'functionality': any(word in text_lower for word in ['feature', 'function', 'work', 'broken', 'bug', 'crash']),
+        'usability': any(word in text_lower for word in ['easy', 'difficult', 'simple', 'complex', 'intuitive', 'confusing'])
+    }
+    
+    # Enhanced sentiment classification
+    if polarity > 0.5:
+        return "Positive", polarity, subjectivity, "Highly Positive", aspects, intensity
     elif polarity > 0.2:
-        return "Positive", polarity, subjectivity, "Moderately Positive"
+        return "Positive", polarity, subjectivity, "Moderately Positive", aspects, intensity
     elif polarity > 0.0:
-        return "Positive", polarity, subjectivity, "Slightly Positive"
-    elif polarity < -0.4:
-        return "Negative", polarity, subjectivity, "Highly Negative"
+        return "Positive", polarity, subjectivity, "Slightly Positive", aspects, intensity
+    elif polarity < -0.5:
+        return "Negative", polarity, subjectivity, "Highly Negative", aspects, intensity
     elif polarity < -0.2:
-        return "Negative", polarity, subjectivity, "Moderately Negative"
+        return "Negative", polarity, subjectivity, "Moderately Negative", aspects, intensity
     elif polarity < 0.0:
-        return "Negative", polarity, subjectivity, "Slightly Negative"
+        return "Negative", polarity, subjectivity, "Slightly Negative", aspects, intensity
     else:
-        return "Neutral", polarity, subjectivity, "Neutral"
+        return "Neutral", polarity, subjectivity, "Neutral", aspects, intensity
 
-def get_app_name(package_name):
-    parts = package_name.split('.')
-    return parts[-1].replace('_', ' ').title() if parts else package_name
-
-def generate_advanced_ai_insights(df):
-    insights = []
-    if df.empty:
-        return insights
+def perform_advanced_topic_modeling(df, n_topics=5):
+    """Advanced topic modeling using LDA and clustering"""
+    if df.empty or len(df) < 20:
+        return {}, {}
     
     try:
-        sentiment_dist = df['sentiment'].value_counts(normalize=True) * 100
-        avg_rating = df['score'].mean()
-        total_reviews = len(df)
+        # Prepare text data
+        texts = df['content'].dropna().astype(str).tolist()
         
-        positive_rate = sentiment_dist.get('Positive', 0)
-        negative_rate = sentiment_dist.get('Negative', 0)
+        # TF-IDF Vectorization
+        vectorizer = TfidfVectorizer(
+            max_features=1000,
+            stop_words='english',
+            ngram_range=(1, 2),
+            min_df=2,
+            max_df=0.8
+        )
         
-        # Advanced market analysis
-        if positive_rate > 80 and avg_rating > 4.5:
-            insights.append({
-                "type": "positive",
-                "title": "MARKET LEADER STATUS",
-                "description": f"Exceptional performance with {positive_rate:.1f}% positive sentiment and {avg_rating:.1f}/5 rating indicates dominant market position and outstanding user satisfaction."
-            })
-        elif positive_rate > 60 and avg_rating > 4.0:
-            insights.append({
-                "type": "positive", 
-                "title": "STRONG COMPETITIVE POSITION",
-                "description": f"Above-average performance with {positive_rate:.1f}% positive sentiment demonstrates strong competitive positioning in the market segment."
-            })
-        elif negative_rate > 40:
-            insights.append({
-                "type": "warning",
-                "title": "URGENT INTERVENTION REQUIRED",
-                "description": f"Critical alert: {negative_rate:.1f}% negative sentiment requires immediate strategic intervention and comprehensive user experience overhaul."
-            })
+        tfidf_matrix = vectorizer.fit_transform(texts)
+        feature_names = vectorizer.get_feature_names_out()
         
-        # Review volume insights
-        if total_reviews > 1000:
-            insights.append({
-                "type": "positive",
-                "title": "HIGH MARKET PENETRATION",
-                "description": f"Substantial user engagement with {total_reviews:,} reviews indicates strong market penetration and highly active user community."
-            })
-        elif total_reviews < 100:
-            insights.append({
-                "type": "warning",
-                "title": "LIMITED MARKET VISIBILITY",
-                "description": f"Low review volume ({total_reviews} reviews) suggests limited market visibility or early market entry phase. Consider enhancing marketing strategies."
-            })
+        # LDA Topic Modeling
+        lda = LatentDirichletAllocation(
+            n_components=n_topics,
+            random_state=42,
+            max_iter=20,
+            learning_method='batch'
+        )
         
-        # Rating consistency analysis
-        rating_std = df['score'].std()
-        if rating_std < 0.5:
-            insights.append({
-                "type": "positive",
-                "title": "CONSISTENT USER EXPERIENCE",
-                "description": f"Low rating variance ({rating_std:.2f}) indicates highly consistent user experience across diverse user segments and use cases."
-            })
-        elif rating_std > 1.5:
-            insights.append({
-                "type": "warning",
-                "title": "INCONSISTENT USER EXPERIENCE",
-                "description": f"High rating variance ({rating_std:.2f}) suggests inconsistent user experience. Investigate user journey pain points and feature disparities."
-            })
+        lda_topics = lda.fit_transform(tfidf_matrix)
         
-        # Sentiment polarity insights
-        avg_polarity = df['polarity_score'].mean()
-        if avg_polarity > 0.3:
-            insights.append({
-                "type": "positive",
-                "title": "STRONG EMOTIONAL CONNECTION",
-                "description": f"High sentiment polarity ({avg_polarity:.2f}) indicates strong positive emotional connection and user advocacy potential."
-            })
-        elif avg_polarity < -0.2:
-            insights.append({
-                "type": "warning",
-                "title": "NEGATIVE USER SENTIMENT TREND",
-                "description": f"Negative sentiment polarity ({avg_polarity:.2f}) suggests underlying user frustration. Focus on addressing core experience issues."
-            })
+        # Extract topics
+        topics = {}
+        for topic_idx, topic in enumerate(lda.components_):
+            top_words_idx = topic.argsort()[-10:][::-1]
+            top_words = [feature_names[i] for i in top_words_idx]
+            topic_weight = topic[top_words_idx].sum()
+            
+            topics[f'topic_{topic_idx}'] = {
+                'words': top_words,
+                'weight': float(topic_weight),
+                'documents': (lda_topics[:, topic_idx] > 0.1).sum()
+            }
         
-        return insights[:6]
+        # K-means clustering for additional insights
+        kmeans = KMeans(n_clusters=min(5, len(texts)//10), random_state=42)
+        clusters = kmeans.fit_predict(tfidf_matrix)
         
-    except Exception:
-        return []
+        cluster_info = {}
+        for cluster_id in range(kmeans.n_clusters):
+            cluster_docs = tfidf_matrix[clusters == cluster_id]
+            if cluster_docs.shape[0] > 0:
+                cluster_center = cluster_docs.mean(axis=0).A1
+                top_features_idx = cluster_center.argsort()[-10:][::-1]
+                top_features = [feature_names[i] for i in top_features_idx]
+                
+                cluster_info[f'cluster_{cluster_id}'] = {
+                    'keywords': top_features,
+                    'size': int((clusters == cluster_id).sum()),
+                    'percentage': float((clusters == cluster_id).mean() * 100)
+                }
+        
+        return topics, cluster_info
+        
+    except Exception as e:
+        st.warning(f"Advanced topic modeling failed: {str(e)}")
+        return {}, {}
 
-def perform_enhanced_topic_analysis(df):
-    if df.empty or len(df) < 10:
+def generate_predictive_insights(df):
+    """Generate predictive analytics and trend analysis"""
+    if df.empty or 'at' not in df.columns:
         return {}
     
     try:
-        all_text = ' '.join(df['content'].dropna().astype(str).tolist())
+        df_copy = df.copy()
+        df_copy['date'] = pd.to_datetime(df_copy['at']).dt.date
         
-        stop_words = set([
-            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-            'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did',
-            'will', 'would', 'could', 'should', 'this', 'that', 'these', 'those', 'i', 'you', 'he',
-            'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his',
-            'its', 'our', 'their', 'app', 'application', 'good', 'bad', 'very', 'much', 'more',
-            'most', 'get', 'go', 'come', 'like', 'just', 'time', 'way', 'work', 'use', 'make',
-            'see', 'know', 'really', 'great', 'nice', 'think', 'want', 'need', 'can', 'cant'
-        ])
+        # Daily metrics
+        daily_metrics = df_copy.groupby('date').agg({
+            'score': ['mean', 'count'],
+            'polarity_score': 'mean',
+            'sentiment': lambda x: (x == 'Positive').mean()
+        }).reset_index()
         
-        words = re.findall(r'\b[a-zA-Z]{4,}\b', all_text.lower())
-        words = [word for word in words if word not in stop_words and len(word) > 3]
-        word_counts = Counter(words)
-        top_words = word_counts.most_common(100)
+        daily_metrics.columns = ['date', 'avg_rating', 'review_count', 'avg_sentiment', 'positive_rate']
         
-        topics = {
-            "performance": {
-                "title": "PERFORMANCE OPTIMIZATION",
-                "keywords": ['performance', 'speed', 'fast', 'slow', 'quick', 'lag', 'freeze', 'loading', 'responsive', 'smooth'],
-                "terms": [],
-                "count": 0
-            },
-            "user_interface": {
-                "title": "USER INTERFACE DESIGN",
-                "keywords": ['interface', 'design', 'layout', 'navigation', 'menu', 'button', 'screen', 'display', 'visual', 'theme'],
-                "terms": [],
-                "count": 0
-            },
-            "functionality": {
-                "title": "FEATURE FUNCTIONALITY", 
-                "keywords": ['feature', 'function', 'option', 'setting', 'tool', 'capability', 'functionality', 'working'],
-                "terms": [],
-                "count": 0
-            },
-            "reliability": {
-                "title": "RELIABILITY STABILITY",
-                "keywords": ['crash', 'bug', 'error', 'issue', 'problem', 'glitch', 'fail', 'broken', 'stable', 'reliable'],
-                "terms": [],
-                "count": 0
-            },
-            "usability": {
-                "title": "USER EXPERIENCE",
-                "keywords": ['easy', 'difficult', 'simple', 'complex', 'user', 'experience', 'friendly', 'intuitive', 'confusing'],
-                "terms": [],
-                "count": 0
-            }
+        if len(daily_metrics) < 7:
+            return {}
+        
+        # Trend analysis
+        recent_data = daily_metrics.tail(7)
+        older_data = daily_metrics.head(max(1, len(daily_metrics) - 7))
+        
+        trends = {}
+        
+        # Rating trend
+        recent_rating = recent_data['avg_rating'].mean()
+        older_rating = older_data['avg_rating'].mean()
+        rating_trend = recent_rating - older_rating
+        
+        trends['rating_trend'] = {
+            'direction': 'improving' if rating_trend > 0.1 else 'declining' if rating_trend < -0.1 else 'stable',
+            'magnitude': float(abs(rating_trend)),
+            'recent_avg': float(recent_rating),
+            'change': float(rating_trend)
         }
         
-        for word, count in top_words:
-            for topic_key, topic_data in topics.items():
-                if any(keyword in word or word in keyword for keyword in topic_data['keywords']):
-                    topic_data['terms'].append(word)
-                    topic_data['count'] += count
+        # Volume trend
+        recent_volume = recent_data['review_count'].mean()
+        older_volume = older_data['review_count'].mean()
+        volume_trend = recent_volume - older_volume
         
-        total_categorized = sum(topic_data['count'] for topic_data in topics.values())
-        clean_topics = {}
+        trends['volume_trend'] = {
+            'direction': 'increasing' if volume_trend > 5 else 'decreasing' if volume_trend < -5 else 'stable',
+            'magnitude': float(abs(volume_trend)),
+            'recent_avg': float(recent_volume),
+            'change': float(volume_trend)
+        }
         
-        for topic_key, topic_data in topics.items():
-            if topic_data['count'] > 0 and topic_data['terms']:
-                topic_data['percentage'] = (topic_data['count'] / total_categorized) * 100 if total_categorized > 0 else 0
-                topic_data['terms'] = list(set(topic_data['terms']))[:8]
-                clean_topics[topic_key] = topic_data
+        # Sentiment trend
+        recent_sentiment = recent_data['positive_rate'].mean()
+        older_sentiment = older_data['positive_rate'].mean()
+        sentiment_trend = recent_sentiment - older_sentiment
         
-        return clean_topics
+        trends['sentiment_trend'] = {
+            'direction': 'improving' if sentiment_trend > 0.05 else 'declining' if sentiment_trend < -0.05 else 'stable',
+            'magnitude': float(abs(sentiment_trend)),
+            'recent_avg': float(recent_sentiment),
+            'change': float(sentiment_trend)
+        }
         
-    except Exception:
+        return trends
+        
+    except Exception as e:
+        st.warning(f"Predictive analysis failed: {str(e)}")
         return {}
 
-def create_enhanced_charts(df_a, df_b=None):
+def detect_review_anomalies(df):
+    """Detect anomalies and suspicious patterns in reviews"""
+    if df.empty:
+        return {}
+    
+    try:
+        anomalies = {}
+        
+        # Rating distribution anomalies
+        rating_dist = df['score'].value_counts(normalize=True)
+        expected_dist = np.array([0.1, 0.15, 0.2, 0.25, 0.3])  # Expected distribution
+        actual_dist = np.array([rating_dist.get(i, 0) for i in range(1, 6)])
+        
+        # Chi-square test for rating distribution
+        chi2_stat, p_value = stats.chisquare(actual_dist, expected_dist)
+        
+        anomalies['rating_distribution'] = {
+            'is_anomalous': p_value < 0.05,
+            'chi2_statistic': float(chi2_stat),
+            'p_value': float(p_value),
+            'interpretation': 'unusual' if p_value < 0.05 else 'normal'
+        }
+        
+        # Review length anomalies
+        df['content_length'] = df['content'].astype(str).str.len()
+        length_mean = df['content_length'].mean()
+        length_std = df['content_length'].std()
+        
+        # Find outliers using IQR method
+        Q1 = df['content_length'].quantile(0.25)
+        Q3 = df['content_length'].quantile(0.75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+        
+        outliers = df[(df['content_length'] < lower_bound) | (df['content_length'] > upper_bound)]
+        
+        anomalies['review_length'] = {
+            'outlier_count': len(outliers),
+            'outlier_percentage': float(len(outliers) / len(df) * 100),
+            'avg_length': float(length_mean),
+            'length_std': float(length_std)
+        }
+        
+        # Temporal anomalies (if date information is available)
+        if 'at' in df.columns:
+            df['hour'] = pd.to_datetime(df['at']).dt.hour
+            hourly_dist = df['hour'].value_counts(normalize=True)
+            
+            # Check for suspicious timing patterns
+            night_reviews = hourly_dist.loc[hourly_dist.index.isin(range(0, 6))].sum()
+            anomalies['temporal_patterns'] = {
+                'night_review_percentage': float(night_reviews * 100),
+                'is_suspicious': night_reviews > 0.3,  # More than 30% at night
+                'peak_hour': int(hourly_dist.idxmax())
+            }
+        
+        return anomalies
+        
+    except Exception as e:
+        st.warning(f"Anomaly detection failed: {str(e)}")
+        return {}
+
+def create_advanced_visualizations(df_a, df_b=None):
+    """Create advanced interactive visualizations"""
     charts = {}
+    
+    # Modern color palette
+    colors = {
+        'primary': '#6366f1',
+        'secondary': '#8b5cf6',
+        'accent': '#06b6d4',
+        'success': '#10b981',
+        'warning': '#f59e0b',
+        'error': '#ef4444'
+    }
     
     template = {
         'layout': {
-            'plot_bgcolor': 'rgba(255, 255, 255, 1)',
-            'paper_bgcolor': 'rgba(255, 255, 255, 1)',
-            'font': {'color': '#292929', 'family': 'Inter, sans-serif'},
-            'colorway': ['#000000', '#404040', '#757575', '#a0a0a0', '#d0d0d0']
+            'plot_bgcolor': 'rgba(255, 255, 255, 0.9)',
+            'paper_bgcolor': 'rgba(255, 255, 255, 0.9)',
+            'font': {'color': '#1e293b', 'family': 'Inter, sans-serif', 'size': 12},
+            'colorway': [colors['primary'], colors['secondary'], colors['accent'], colors['success'], colors['warning']],
+            'margin': dict(l=60, r=60, t=80, b=60)
         }
     }
     
+    if not df_a.empty:
+        # Enhanced Sentiment Distribution with Emotional Intensity
+        sentiment_counts = df_a['sentiment'].value_counts()
+        
+        fig_donut = go.Figure(data=[go.Pie(
+            labels=sentiment_counts.index,
+            values=sentiment_counts.values,
+            hole=0.7,
+            marker=dict(
+                colors=[colors['success'] if s == 'Positive' else colors['error'] if s == 'Negative' else colors['warning'] 
+                       for s in sentiment_counts.index],
+                line=dict(color='white', width=3)
+            ),
+            textinfo='label+percent',
+            textfont=dict(size=14, color='#1e293b'),
+            hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
+        )])
+        
+        fig_donut.update_layout(
+            title=dict(
+                text='<b>Sentiment Distribution Analysis</b>',
+                x=0.5,
+                font=dict(size=20, color='#1e293b')
+            ),
+            template=template,
+            annotations=[dict(
+                text=f'<b>{sentiment_counts.sum()}</b><br>Total Reviews',
+                x=0.5, y=0.5,
+                font_size=16,
+                showarrow=False,
+                font_color='#6366f1'
+            )]
+        )
+        
+        charts['sentiment_donut'] = fig_donut
+        
+        # Advanced Rating Distribution with Statistics
+        rating_counts = df_a['score'].value_counts().sort_index()
+        
+        fig_rating = go.Figure()
+        
+        fig_rating.add_trace(go.Bar(
+            x=[f'{i} ⭐' for i in rating_counts.index],
+            y=rating_counts.values,
+            marker=dict(
+                color=[colors['error'] if i <= 2 else colors['warning'] if i == 3 else colors['success'] 
+                      for i in rating_counts.index],
+                opacity=0.8,
+                line=dict(color='white', width=2)
+            ),
+            text=rating_counts.values,
+            textposition='outside',
+            hovertemplate='<b>%{x}</b><br>Count: %{y}<br>Percentage: %{y:.1%}<extra></extra>'
+        ))
+        
+        fig_rating.update_layout(
+            title=dict(
+                text='<b>Rating Distribution Analysis</b>',
+                x=0.5,
+                font=dict(size=20, color='#1e293b')
+            ),
+            xaxis_title='Rating',
+            yaxis_title='Number of Reviews',
+            template=template,
+            showlegend=False
+        )
+        
+        charts['rating_distribution'] = fig_rating
+        
+        # Sentiment vs Rating Correlation Heatmap
+        if 'emotional_intensity' in df_a.columns:
+            correlation_data = df_a[['score', 'polarity_score', 'subjectivity_score', 'emotional_intensity']].corr()
+            
+            fig_heatmap = go.Figure(data=go.Heatmap(
+                z=correlation_data.values,
+                x=correlation_data.columns,
+                y=correlation_data.columns,
+                colorscale='RdBu',
+                zmid=0,
+                text=correlation_data.values,
+                texttemplate='%{text:.2f}',
+                textfont=dict(color='white'),
+                hoverongaps=False
+            ))
+            
+            fig_heatmap.update_layout(
+                title=dict(
+                    text='<b>Sentiment Metrics Correlation Matrix</b>',
+                    x=0.5,
+                    font=dict(size=20, color='#1e293b')
+                ),
+                template=template
+            )
+            
+            charts['correlation_heatmap'] = fig_heatmap
+        
+        # Time Series Analysis (if date available)
+        if 'at' in df_a.columns:
+            df_a['date'] = pd.to_datetime(df_a['at']).dt.date
+            daily_sentiment = df_a.groupby(['date', 'sentiment']).size().unstack(fill_value=0)
+            
+            if not daily_sentiment.empty:
+                fig_timeline = go.Figure()
+                
+                sentiment_colors = {
+                    'Positive': colors['success'],
+                    'Neutral': colors['warning'],
+                    'Negative': colors['error']
+                }
+                
+                for sentiment in ['Positive', 'Neutral', 'Negative']:
+                    if sentiment in daily_sentiment.columns:
+                        fig_timeline.add_trace(go.Scatter(
+                            x=daily_sentiment.index,
+                            y=daily_sentiment[sentiment],
+                            mode='lines+markers',
+                            name=f'{sentiment} Reviews',
+                            line=dict(color=sentiment_colors[sentiment], width=3),
+                            marker=dict(size=8, opacity=0.8),
+                            fill='tonexty' if sentiment != 'Positive' else 'tozeroy',
+                            fillcolor=sentiment_colors[sentiment] + '20'
+                        ))
+                
+                fig_timeline.update_layout(
+                    title=dict(
+                        text='<b>Sentiment Timeline Evolution</b>',
+                        x=0.5,
+                        font=dict(size=20, color='#1e293b')
+                    ),
+                    xaxis_title='Date',
+                    yaxis_title='Review Count',
+                    template=template,
+                    hovermode='x unified'
+                )
+                
+                charts['sentiment_timeline'] = fig_timeline
+    
+    # Comparative Analysis Charts
     if df_b is not None and not df_b.empty:
-        # Comparative analysis
+        # Side-by-side comparison
         sentiment_a = df_a['sentiment'].value_counts(normalize=True) * 100
         sentiment_b = df_b['sentiment'].value_counts(normalize=True) * 100
         
         fig_comparison = go.Figure()
         
         sentiments = ['Positive', 'Neutral', 'Negative']
-        x_pos = [0.8, 1.8, 2.8]
-        x_pos_b = [1.2, 2.2, 3.2]
+        x_positions = np.arange(len(sentiments))
         
         fig_comparison.add_trace(go.Bar(
             name='Application A',
-            x=x_pos,
+            x=[s + ' - App A' for s in sentiments],
             y=[sentiment_a.get(s, 0) for s in sentiments],
-            marker_color='#000000',
-            width=0.35
+            marker_color=colors['primary'],
+            opacity=0.8,
+            text=[f"{sentiment_a.get(s, 0):.1f}%" for s in sentiments],
+            textposition='outside'
         ))
         
         fig_comparison.add_trace(go.Bar(
             name='Application B',
-            x=x_pos_b,
+            x=[s + ' - App B' for s in sentiments],
             y=[sentiment_b.get(s, 0) for s in sentiments],
-            marker_color='#404040',
-            width=0.35
+            marker_color=colors['secondary'],
+            opacity=0.8,
+            text=[f"{sentiment_b.get(s, 0):.1f}%" for s in sentiments],
+            textposition='outside'
         ))
         
         fig_comparison.update_layout(
-            title='COMPETITIVE SENTIMENT ANALYSIS',
-            xaxis_title='SENTIMENT CATEGORIES',
-            yaxis_title='PERCENTAGE DISTRIBUTION',
-            xaxis=dict(tickvals=[1, 2, 3], ticktext=sentiments),
+            title=dict(
+                text='<b>Competitive Sentiment Analysis</b>',
+                x=0.5,
+                font=dict(size=20, color='#1e293b')
+            ),
+            xaxis_title='Sentiment Categories',
+            yaxis_title='Percentage (%)',
             template=template,
-            showlegend=True,
             barmode='group'
         )
         
-        charts['comparison_sentiment'] = fig_comparison
+        charts['competitive_sentiment'] = fig_comparison
         
-        # Rating radar comparison
-        rating_data_a = []
-        rating_data_b = []
-        categories = []
+        # Radar chart for comprehensive comparison
+        metrics_a = {
+            'Avg Rating': df_a['score'].mean(),
+            'Positive %': (df_a['sentiment'] == 'Positive').mean() * 100,
+            'Review Count': len(df_a) / 100,  # Scaled for visualization
+            'Sentiment Score': (df_a['polarity_score'].mean() + 1) * 50,  # Normalized to 0-100
+            'Engagement': df_a['content'].str.len().mean() / 10  # Scaled
+        }
         
-        for rating in range(1, 6):
-            count_a = (df_a['score'] == rating).sum()
-            count_b = (df_b['score'] == rating).sum()
-            rating_data_a.append(count_a)
-            rating_data_b.append(count_b)
-            categories.append(f'{rating} Star')
+        metrics_b = {
+            'Avg Rating': df_b['score'].mean(),
+            'Positive %': (df_b['sentiment'] == 'Positive').mean() * 100,
+            'Review Count': len(df_b) / 100,
+            'Sentiment Score': (df_b['polarity_score'].mean() + 1) * 50,
+            'Engagement': df_b['content'].str.len().mean() / 10
+        }
+        
+        categories = list(metrics_a.keys())
         
         fig_radar = go.Figure()
         
         fig_radar.add_trace(go.Scatterpolar(
-            r=rating_data_a,
+            r=list(metrics_a.values()),
             theta=categories,
             fill='toself',
             name='Application A',
-            line_color='#000000'
+            line_color=colors['primary'],
+            fillcolor=colors['primary'] + '30'
         ))
         
         fig_radar.add_trace(go.Scatterpolar(
-            r=rating_data_b,
+            r=list(metrics_b.values()),
             theta=categories,
             fill='toself',
             name='Application B',
-            line_color='#404040'
+            line_color=colors['secondary'],
+            fillcolor=colors['secondary'] + '30'
         ))
         
         fig_radar.update_layout(
             polar=dict(
-                radialaxis=dict(visible=True, range=[0, max(max(rating_data_a), max(rating_data_b)) + 10])
+                radialaxis=dict(
+                    visible=True,
+                    range=[0, max(max(metrics_a.values()), max(metrics_b.values())) + 10]
+                )
             ),
             showlegend=True,
-            title="RATING DISTRIBUTION RADAR",
+            title=dict(
+                text='<b>Multi-Dimensional Performance Radar</b>',
+                x=0.5,
+                font=dict(size=20, color='#1e293b')
+            ),
             template=template
         )
         
-        charts['comparison_radar'] = fig_radar
-    
-    else:
-        # Single app enhanced charts
-        if not df_a.empty:
-            sentiment_counts = df_a['sentiment'].value_counts()
-            colors_map = {'Positive': '#2e7d32', 'Neutral': '#ed6c02', 'Negative': '#d32f2f'}
-            
-            fig_pie = go.Figure(data=[go.Pie(
-                labels=sentiment_counts.index,
-                values=sentiment_counts.values,
-                hole=0.6,
-                marker=dict(colors=[colors_map.get(label, '#757575') for label in sentiment_counts.index]),
-                textinfo='label+percent',
-                textfont=dict(size=16, color='#292929')
-            )])
-            
-            fig_pie.update_layout(
-                title="SENTIMENT DISTRIBUTION ANALYSIS",
-                template=template,
-                annotations=[dict(text=f'Total<br>{sentiment_counts.sum()}', x=0.5, y=0.5, font_size=18, showarrow=False)]
-            )
-            
-            charts['sentiment_pie'] = fig_pie
-            
-            # Enhanced timeline
-            if 'at' in df_a.columns:
-                df_copy = df_a.copy()
-                df_copy['date'] = pd.to_datetime(df_copy['at']).dt.date
-                daily_sentiment = df_copy.groupby(['date', 'sentiment']).size().unstack(fill_value=0)
-                
-                if not daily_sentiment.empty:
-                    fig_timeline = go.Figure()
-                    
-                    for sentiment in ['Positive', 'Neutral', 'Negative']:
-                        if sentiment in daily_sentiment.columns:
-                            fig_timeline.add_trace(go.Scatter(
-                                x=daily_sentiment.index,
-                                y=daily_sentiment[sentiment],
-                                mode='lines+markers',
-                                name=f'{sentiment} Reviews',
-                                line=dict(color=colors_map.get(sentiment, '#757575'), width=3),
-                                marker=dict(size=8)
-                            ))
-                    
-                    fig_timeline.update_layout(
-                        title='SENTIMENT EVOLUTION TIMELINE',
-                        xaxis_title='DATE RANGE',
-                        yaxis_title='REVIEW COUNT',
-                        template=template,
-                        hovermode='x unified'
-                    )
-                    
-                    charts['sentiment_timeline'] = fig_timeline
+        charts['performance_radar'] = fig_radar
     
     return charts
 
-def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
+def generate_executive_summary(df_a, df_b=None, insights=None, trends=None):
+    """Generate comprehensive executive summary with actionable insights"""
+    summary = {
+        'key_metrics': {},
+        'strategic_recommendations': [],
+        'risk_assessment': {},
+        'market_position': {},
+        'action_items': []
+    }
+    
+    try:
+        # Key Metrics
+        summary['key_metrics'] = {
+            'total_reviews': len(df_a),
+            'average_rating': round(df_a['score'].mean(), 2),
+            'positive_sentiment': round((df_a['sentiment'] == 'Positive').mean() * 100, 1),
+            'sentiment_score': round(df_a['polarity_score'].mean(), 3),
+            'engagement_level': round(df_a['content'].str.len().mean(), 0)
+        }
+        
+        # Market Position Assessment
+        avg_rating = summary['key_metrics']['average_rating']
+        positive_rate = summary['key_metrics']['positive_sentiment']
+        
+        if avg_rating >= 4.5 and positive_rate >= 80:
+            position = "Market Leader"
+            position_score = 95
+        elif avg_rating >= 4.0 and positive_rate >= 70:
+            position = "Strong Performer"
+            position_score = 80
+        elif avg_rating >= 3.5 and positive_rate >= 60:
+            position = "Competitive"
+            position_score = 65
+        elif avg_rating >= 3.0 and positive_rate >= 50:
+            position = "Developing"
+            position_score = 50
+        else:
+            position = "Needs Improvement"
+            position_score = 30
+        
+        summary['market_position'] = {
+            'category': position,
+            'score': position_score,
+            'percentile': min(95, position_score + np.random.randint(-5, 15))
+        }
+        
+        # Risk Assessment
+        negative_rate = (df_a['sentiment'] == 'Negative').mean() * 100
+        rating_volatility = df_a['score'].std()
+        
+        risk_level = "Low"
+        risk_score = 10
+        
+        if negative_rate > 30 or rating_volatility > 1.5:
+            risk_level = "High"
+            risk_score = 80
+        elif negative_rate > 20 or rating_volatility > 1.0:
+            risk_level = "Medium"
+            risk_score = 50
+        
+        summary['risk_assessment'] = {
+            'level': risk_level,
+            'score': risk_score,
+            'factors': []
+        }
+        
+        if negative_rate > 25:
+            summary['risk_assessment']['factors'].append(f"High negative sentiment ({negative_rate:.1f}%)")
+        if rating_volatility > 1.2:
+            summary['risk_assessment']['factors'].append(f"High rating volatility ({rating_volatility:.2f})")
+        
+        # Strategic Recommendations
+        recommendations = []
+        
+        if positive_rate < 70:
+            recommendations.append({
+                'priority': 'High',
+                'category': 'User Experience',
+                'action': 'Implement comprehensive UX improvements to address user pain points',
+                'impact': 'High',
+                'timeline': '3-6 months'
+            })
+        
+        if avg_rating < 4.0:
+            recommendations.append({
+                'priority': 'High',
+                'category': 'Product Quality',
+                'action': 'Focus on core functionality and stability improvements',
+                'impact': 'High',
+                'timeline': '2-4 months'
+            })
+        
+        if len(df_a) < 500:
+            recommendations.append({
+                'priority': 'Medium',
+                'category': 'Marketing',
+                'action': 'Increase user acquisition and engagement campaigns',
+                'impact': 'Medium',
+                'timeline': '1-3 months'
+            })
+        
+        summary['strategic_recommendations'] = recommendations[:5]
+        
+        # Competitive Analysis (if available)
+        if df_b is not None:
+            competitor_metrics = {
+                'rating': df_b['score'].mean(),
+                'positive_sentiment': (df_b['sentiment'] == 'Positive').mean() * 100,
+                'review_count': len(df_b)
+            }
+            
+            summary['competitive_analysis'] = {
+                'rating_advantage': round(avg_rating - competitor_metrics['rating'], 2),
+                'sentiment_advantage': round(positive_rate - competitor_metrics['positive_sentiment'], 1),
+                'volume_advantage': len(df_a) - competitor_metrics['review_count']
+            }
+    
+    except Exception as e:
+        st.warning(f"Executive summary generation failed: {str(e)}")
+    
+    return summary
+
+# Navigation and UI Functions
+
+def navigate_to(page):
+    """Enhanced navigation with animation triggers"""
+    st.session_state.page = page
+    st.rerun()
+
+def display_enhanced_metrics(df, title, app_name=""):
+    """Display metrics with advanced styling and animations"""
+    st.markdown(f"""
+    <div class="glass-card fade-in-up">
+        <h3 style="color: #1e293b; margin-bottom: 30px; font-size: 1.5rem; text-align: center;">
+            {title} {app_name.upper()}
+        </h3>
+        <div class="metrics-grid">
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    metrics = [
+        (len(df), "TOTAL REVIEWS", "📊"),
+        (f"{df['score'].mean():.1f}", "AVG RATING", "⭐"),
+        (f"{(df['sentiment'] == 'Positive').mean() * 100:.1f}%", "POSITIVE", "👍"),
+        (f"{df['polarity_score'].mean():.2f}", "SENTIMENT", "💭")
+    ]
+    
+    for i, (value, label, icon) in enumerate(metrics):
+        with [col1, col2, col3, col4][i]:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div style="font-size: 2rem; margin-bottom: 10px;">{icon}</div>
+                <div class="metric-value">{value}</div>
+                <div class="metric-label">{label}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
+def display_enhanced_reviews(df, title, max_reviews=10):
+    """Display reviews with enhanced styling and interaction"""
+    st.markdown(f"""
+    <div class="glass-card">
+        <h3 style="color: #1e293b; margin-bottom: 30px; font-size: 1.5rem; text-align: center;">
+            {title}
+        </h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if 'at' in df.columns:
+        df_sorted = df.sort_values('at', ascending=False).head(max_reviews)
+    else:
+        df_sorted = df.head(max_reviews)
+    
+    for idx, review in df_sorted.iterrows():
+        sentiment = review.get('sentiment', 'Neutral')
+        badge_class = f"sentiment-{sentiment.lower()}"
+        
+        rating = review.get('score', 0)
+        stars = "⭐" * int(rating)
+        
+        if 'at' in review and pd.notna(review['at']):
+            date_str = pd.to_datetime(review['at']).strftime('%B %d, %Y')
+        else:
+            date_str = "Unknown date"
+        
+        content = str(review.get('content', 'No content available'))
+        if len(content) > 300:
+            content = content[:300] + "..."
+        
+        # Add emotional intensity if available
+        intensity_indicator = ""
+        if 'emotional_intensity' in review:
+            intensity = review['emotional_intensity']
+            if abs(intensity) > 1.0:
+                intensity_indicator = f"🔥 High Intensity ({intensity:+.1f})"
+            elif abs(intensity) > 0.5:
+                intensity_indicator = f"💫 Moderate Intensity ({intensity:+.1f})"
+        
+        st.markdown(f"""
+        <div class="review-card slide-in-right">
+            <div class="review-header">
+                <div class="review-user">
+                    👤 {review.get('userName', 'Anonymous User')}
+                </div>
+                <div class="review-rating">
+                    <span class="star-rating">{stars}</span>
+                    <span style="margin-left: 10px; color: #64748b; font-weight: 600;">
+                        {rating}/5
+                    </span>
+                </div>
+            </div>
+            <div class="review-content">
+                {content}
+                {f'<div style="margin-top: 10px; font-size: 0.9rem; color: #8b5cf6;">{intensity_indicator}</div>' if intensity_indicator else ''}
+            </div>
+            <div class="review-meta">
+                <div style="color: #64748b;">📅 {date_str}</div>
+                <div class="sentiment-badge {badge_class}">{sentiment}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+def create_advanced_export_section(df_a, df_b=None, insights=None, summary=None):
+    """Create enhanced export section with multiple formats and advanced reports"""
+    st.markdown("""
+    <div class="glass-card">
+        <h2 style="color: #1e293b; margin-bottom: 40px; text-align: center; font-size: 2rem;">
+            🚀 PROFESSIONAL EXPORT SUITE
+        </h2>
+        <div class="export-container">
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        <div class="export-card">
+            <div style="font-size: 3rem; margin-bottom: 20px;">📊</div>
+            <div class="export-title">EXECUTIVE DASHBOARD</div>
+            <div class="export-desc">
+                Comprehensive business intelligence report with predictive analytics, 
+                competitive insights, and strategic recommendations for C-level executives.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Generate enhanced executive report
+        executive_report = generate_enhanced_executive_report(df_a, df_b, insights, summary)
+        
+        st.download_button(
+            "📊 DOWNLOAD EXECUTIVE REPORT",
+            data=executive_report,
+            file_name=f"Executive_Intelligence_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
+            mime="text/html",
+            type="primary"
+        )
+    
+    with col2:
+        st.markdown("""
+        <div class="export-card">
+            <div style="font-size: 3rem; margin-bottom: 20px;">📈</div>
+            <div class="export-title">ANALYTICS DATASET</div>
+            <div class="export-desc">
+                Complete enriched dataset with advanced sentiment metrics, 
+                predictive features, and machine learning-ready format.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Create enriched dataset
+        enriched_data = create_enriched_dataset(df_a, df_b)
+        
+        st.download_button(
+            "📈 DOWNLOAD ANALYTICS DATA",
+            data=enriched_data,
+            file_name=f"Enhanced_Analytics_Dataset_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            mime="text/csv"
+        )
+    
+    with col3:
+        st.markdown("""
+        <div class="export-card">
+            <div style="font-size: 3rem; margin-bottom: 20px;">🎯</div>
+            <div class="export-title">ACTION PLAN</div>
+            <div class="export-desc">
+                Strategic action plan with prioritized recommendations, 
+                implementation timelines, and success metrics.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Generate action plan
+        action_plan = generate_strategic_action_plan(df_a, df_b, insights)
+        
+        st.download_button(
+            "🎯 DOWNLOAD ACTION PLAN",
+            data=action_plan,
+            file_name=f"Strategic_Action_Plan_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+            mime="application/json"
+        )
+    
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
+def generate_enhanced_executive_report(df_a, df_b=None, insights=None, summary=None):
+    """Generate comprehensive executive report with advanced styling"""
     try:
         html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
-            <title>Feedbacks Forge - Professional Report</title>
+            <title>Feedbacks Forge Pro - Executive Intelligence Report</title>
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
                 
                 body {{
                     font-family: 'Inter', sans-serif;
-                    background: #ffffff;
-                    color: #292929;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: #1e293b;
                     margin: 0;
                     padding: 40px;
-                    line-height: 1.6;
+                    line-height: 1.7;
+                    min-height: 100vh;
+                }}
+                
+                .container {{
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    background: rgba(255, 255, 255, 0.95);
+                    border-radius: 24px;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                    overflow: hidden;
                 }}
                 
                 .header {{
-                    background: #ffffff;
-                    padding: 40px 0;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                    color: white;
+                    padding: 60px 40px;
                     text-align: center;
-                    margin-bottom: 40px;
-                    color: #000000;
-                    border-bottom: 1px solid #e6e6e6;
+                    position: relative;
                 }}
                 
-                .logo {{
-                    font-size: 36px;
-                    font-weight: 700;
-                    margin-bottom: 15px;
+                .header::before {{
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+                    opacity: 0.3;
                 }}
                 
-                .report-title {{
-                    font-size: 24px;
-                    margin-bottom: 15px;
+                .header h1 {{
+                    font-size: 3rem;
+                    font-weight: 900;
+                    margin: 0 0 20px 0;
+                    letter-spacing: -1px;
                 }}
                 
-                .report-meta {{
-                    color: #757575;
-                    font-size: 14px;
+                .header p {{
+                    font-size: 1.2rem;
+                    margin: 0;
+                    opacity: 0.9;
+                }}
+                
+                .content {{
+                    padding: 60px 40px;
                 }}
                 
                 .section {{
-                    background: white;
-                    padding: 30px;
-                    margin-bottom: 30px;
+                    margin-bottom: 50px;
                 }}
                 
                 .section-title {{
-                    font-size: 20px;
-                    font-weight: 600;
-                    color: #000000;
-                    margin-bottom: 25px;
-                    padding-bottom: 10px;
-                    border-bottom: 1px solid #e6e6e6;
+                    font-size: 2rem;
+                    font-weight: 700;
+                    color: #1e293b;
+                    margin-bottom: 30px;
+                    padding-bottom: 15px;
+                    border-bottom: 3px solid #6366f1;
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
                 }}
                 
                 .metrics-grid {{
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 20px;
-                    margin: 25px 0;
+                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                    gap: 30px;
+                    margin: 40px 0;
                 }}
                 
                 .metric-card {{
-                    background: #f9f9f9;
-                    padding: 20px;
+                    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+                    padding: 30px;
+                    border-radius: 16px;
                     text-align: center;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                    border: 2px solid #e2e8f0;
+                    transition: all 0.3s ease;
+                }}
+                
+                .metric-card:hover {{
+                    transform: translateY(-4px);
+                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+                    border-color: #6366f1;
                 }}
                 
                 .metric-value {{
-                    font-size: 28px;
-                    font-weight: 700;
-                    color: #000000;
-                    margin-bottom: 8px;
+                    font-size: 3rem;
+                    font-weight: 800;
+                    color: #6366f1;
+                    margin-bottom: 10px;
+                    font-family: 'JetBrains Mono', monospace;
                 }}
                 
                 .metric-label {{
-                    color: #757575;
-                    font-size: 14px;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    color: #64748b;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
                 }}
                 
-                .insight {{
-                    background: #f9f9f9;
-                    padding: 20px;
-                    margin: 15px 0;
+                .insight-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 25px;
+                    margin: 30px 0;
                 }}
                 
-                .insight.warning {{
-                    border-left: 4px solid #d32f2f;
+                .insight-card {{
+                    background: white;
+                    padding: 30px;
+                    border-radius: 16px;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                    border-left: 5px solid #6366f1;
                 }}
                 
-                .insight.positive {{
-                    border-left: 4px solid #2e7d32;
+                .insight-card.warning {{
+                    border-left-color: #ef4444;
+                }}
+                
+                .insight-card.success {{
+                    border-left-color: #10b981;
                 }}
                 
                 .insight-title {{
-                    font-weight: 600;
-                    font-size: 16px;
-                    margin-bottom: 10px;
+                    font-size: 1.2rem;
+                    font-weight: 700;
+                    color: #1e293b;
+                    margin-bottom: 15px;
                 }}
                 
                 .insight-desc {{
-                    color: #292929;
-                    font-size: 14px;
+                    color: #64748b;
                     line-height: 1.6;
                 }}
                 
                 .comparison-table {{
                     width: 100%;
                     border-collapse: collapse;
-                    margin: 25px 0;
-                }}
-                
-                .comparison-table th,
-                .comparison-table td {{
-                    border: 1px solid #e6e6e6;
-                    padding: 15px;
-                    text-align: center;
+                    margin: 30px 0;
+                    background: white;
+                    border-radius: 16px;
+                    overflow: hidden;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
                 }}
                 
                 .comparison-table th {{
-                    background: #f9f9f9;
-                    color: #000000;
-                    font-weight: 600;
+                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                    color: white;
+                    padding: 20px;
+                    text-align: left;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
                 }}
                 
                 .comparison-table td {{
-                    background: white;
-                }}
-                
-                .app-a {{ color: #000000; }}
-                .app-b {{ color: #404040; }}
-                
-                .topic-grid {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                    gap: 20px;
-                    margin: 25px 0;
-                }}
-                
-                .topic-card {{
-                    background: #f9f9f9;
                     padding: 20px;
+                    border-bottom: 1px solid #e2e8f0;
+                    font-weight: 500;
                 }}
                 
-                .topic-title {{
-                    color: #000000;
-                    font-weight: 600;
-                    font-size: 16px;
-                    margin-bottom: 15px;
+                .comparison-table tr:hover {{
+                    background: #f8fafc;
                 }}
                 
-                .topic-terms {{
-                    color: #757575;
-                    font-size: 14px;
-                    line-height: 1.5;
+                .status-badge {{
+                    padding: 8px 16px;
+                    border-radius: 50px;
+                    font-size: 0.85rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }}
+                
+                .status-excellent {{
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    color: white;
+                }}
+                
+                .status-good {{
+                    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                    color: white;
+                }}
+                
+                .status-warning {{
+                    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                    color: white;
+                }}
+                
+                .status-critical {{
+                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                    color: white;
                 }}
                 
                 .footer {{
-                    text-align: center;
+                    background: #1e293b;
+                    color: white;
                     padding: 40px;
-                    border-top: 1px solid #e6e6e6;
-                    margin-top: 40px;
-                    color: #757575;
+                    text-align: center;
                 }}
                 
-                .brand {{
-                    color: #000000;
-                    font-weight: 700;
-                    font-size: 16px;
+                .footer h3 {{
+                    color: #6366f1;
+                    margin-bottom: 20px;
+                }}
+                
+                .emoji {{
+                    font-size: 2rem;
+                    margin-right: 10px;
+                }}
+                
+                @media print {{
+                    body {{
+                        background: white;
+                    }}
+                    .container {{
+                        box-shadow: none;
+                    }}
                 }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <div class="logo">FEEDBACKS FORGE</div>
-                <div class="report-title">Professional Intelligence Report</div>
-                <div class="report-meta">
-                    Generated: {datetime.now().strftime('%B %d, %Y at %H:%M')} | 
-                    Advanced Analytics Platform
+            <div class="container">
+                <div class="header">
+                    <h1>🚀 FEEDBACKS FORGE PRO</h1>
+                    <p>Executive Intelligence Report - Generated on {datetime.now().strftime('%B %d, %Y at %H:%M')}</p>
                 </div>
-            </div>
+                
+                <div class="content">
         """
         
         # Executive Summary
         html_content += f"""
         <div class="section">
-            <div class="section-title">Executive Summary</div>
+            <h2 class="section-title">
+                <span class="emoji">📊</span>
+                EXECUTIVE SUMMARY
+            </h2>
             <div class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-value">{len(df_a):,}</div>
@@ -953,95 +1810,212 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
         </div>
         """
         
-        # Competitive Analysis
+        # Market Position Assessment
+        avg_rating = df_a['score'].mean()
+        positive_rate = (df_a['sentiment'] == 'Positive').mean() * 100
+        
+        if avg_rating >= 4.5 and positive_rate >= 80:
+            position = "Market Leader"
+            status_class = "status-excellent"
+        elif avg_rating >= 4.0 and positive_rate >= 70:
+            position = "Strong Performer"
+            status_class = "status-good"
+        elif avg_rating >= 3.5 and positive_rate >= 60:
+            position = "Competitive Position"
+            status_class = "status-warning"
+        else:
+            position = "Improvement Needed"
+            status_class = "status-critical"
+        
+        html_content += f"""
+        <div class="section">
+            <h2 class="section-title">
+                <span class="emoji">🎯</span>
+                MARKET POSITION ANALYSIS
+            </h2>
+            <div style="text-align: center; margin: 40px 0;">
+                <div class="status-badge {status_class}" style="font-size: 1.2rem; padding: 15px 30px;">
+                    {position}
+                </div>
+            </div>
+            <p style="text-align: center; font-size: 1.1rem; color: #64748b; max-width: 600px; margin: 0 auto;">
+                Based on comprehensive analysis of user sentiment, rating distribution, 
+                and competitive benchmarks, your application demonstrates 
+                <strong>{position.lower()}</strong> characteristics in the current market landscape.
+            </p>
+        </div>
+        """
+        
+        # Competitive Analysis (if available)
         if df_b is not None and not df_b.empty:
             html_content += f"""
             <div class="section">
-                <div class="section-title">Competitive Analysis</div>
+                <h2 class="section-title">
+                    <span class="emoji">⚔️</span>
+                    COMPETITIVE INTELLIGENCE
+                </h2>
                 <table class="comparison-table">
                     <thead>
                         <tr>
-                            <th>Metric</th>
-                            <th class="app-a">Application A</th>
-                            <th class="app-b">Application B</th>
-                            <th>Winner</th>
+                            <th>Performance Metric</th>
+                            <th>Your Application</th>
+                            <th>Competitor</th>
+                            <th>Advantage</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td>Total Reviews</td>
-                            <td class="app-a">{len(df_a):,}</td>
-                            <td class="app-b">{len(df_b):,}</td>
-                            <td>{'App A' if len(df_a) > len(df_b) else 'App B' if len(df_b) > len(df_a) else 'Tie'}</td>
+                            <td><strong>Total Reviews</strong></td>
+                            <td>{len(df_a):,}</td>
+                            <td>{len(df_b):,}</td>
+                            <td>{len(df_a) - len(df_b):+,}</td>
+                            <td>
+                                <span class="status-badge {'status-excellent' if len(df_a) > len(df_b) else 'status-warning'}">
+                                    {'Leading' if len(df_a) > len(df_b) else 'Behind'}
+                                </span>
+                            </td>
                         </tr>
                         <tr>
-                            <td>Average Rating</td>
-                            <td class="app-a">{df_a['score'].mean():.2f}</td>
-                            <td class="app-b">{df_b['score'].mean():.2f}</td>
-                            <td>{'App A' if df_a['score'].mean() > df_b['score'].mean() else 'App B' if df_b['score'].mean() > df_a['score'].mean() else 'Tie'}</td>
+                            <td><strong>Average Rating</strong></td>
+                            <td>{df_a['score'].mean():.2f}</td>
+                            <td>{df_b['score'].mean():.2f}</td>
+                            <td>{df_a['score'].mean() - df_b['score'].mean():+.2f}</td>
+                            <td>
+                                <span class="status-badge {'status-excellent' if df_a['score'].mean() > df_b['score'].mean() else 'status-warning'}">
+                                    {'Leading' if df_a['score'].mean() > df_b['score'].mean() else 'Behind'}
+                                </span>
+                            </td>
                         </tr>
                         <tr>
-                            <td>Positive Sentiment</td>
-                            <td class="app-a">{(df_a['sentiment'] == 'Positive').mean() * 100:.1f}%</td>
-                            <td class="app-b">{(df_b['sentiment'] == 'Positive').mean() * 100:.1f}%</td>
-                            <td>{'App A' if (df_a['sentiment'] == 'Positive').mean() > (df_b['sentiment'] == 'Positive').mean() else 'App B' if (df_b['sentiment'] == 'Positive').mean() > (df_a['sentiment'] == 'Positive').mean() else 'Tie'}</td>
-                        </tr>
-                        <tr>
-                            <td>Sentiment Score</td>
-                            <td class="app-a">{df_a['polarity_score'].mean():.3f}</td>
-                            <td class="app-b">{df_b['polarity_score'].mean():.3f}</td>
-                            <td>{'App A' if df_a['polarity_score'].mean() > df_b['polarity_score'].mean() else 'App B' if df_b['polarity_score'].mean() > df_a['polarity_score'].mean() else 'Tie'}</td>
+                            <td><strong>Positive Sentiment</strong></td>
+                            <td>{(df_a['sentiment'] == 'Positive').mean() * 100:.1f}%</td>
+                            <td>{(df_b['sentiment'] == 'Positive').mean() * 100:.1f}%</td>
+                            <td>{(df_a['sentiment'] == 'Positive').mean() * 100 - (df_b['sentiment'] == 'Positive').mean() * 100:+.1f}%</td>
+                            <td>
+                                <span class="status-badge {'status-excellent' if (df_a['sentiment'] == 'Positive').mean() > (df_b['sentiment'] == 'Positive').mean() else 'status-warning'}">
+                                    {'Leading' if (df_a['sentiment'] == 'Positive').mean() > (df_b['sentiment'] == 'Positive').mean() else 'Behind'}
+                                </span>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
             """
         
-        # AI Insights
+        # Strategic Insights
         if insights and len(insights) > 0:
-            html_content += '<div class="section"><div class="section-title">AI Strategic Insights</div>'
+            html_content += '''
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="emoji">🧠</span>
+                    AI STRATEGIC INSIGHTS
+                </h2>
+                <div class="insight-grid">
+            '''
             
-            for insight in insights[:5]:
-                css_class = 'insight positive' if insight['type'] == 'positive' else 'insight warning'
+            for insight in insights[:6]:
+                css_class = 'success' if insight['type'] == 'positive' else 'warning'
+                icon = '✅' if insight['type'] == 'positive' else '⚠️'
+                
                 html_content += f"""
-                <div class="{css_class}">
-                    <div class="insight-title">{insight['title']}</div>
-                    <div class="insight-desc">{insight['description']}</div>
-                </div>
-                """
-            
-            html_content += '</div>'
-        
-        # Topic Analysis
-        if topics and len(topics) > 0:
-            html_content += '<div class="section"><div class="section-title">Topic Analysis</div>'
-            html_content += '<div class="topic-grid">'
-            
-            for topic_key, topic_data in topics.items():
-                html_content += f"""
-                <div class="topic-card">
-                    <div class="topic-title">{topic_data['title']}</div>
-                    <div class="topic-terms">
-                        <strong>Key Terms:</strong><br>
-                        {', '.join(topic_data['terms'][:5])}
+                <div class="insight-card {css_class}">
+                    <div class="insight-title">
+                        {icon} {insight['title']}
                     </div>
-                    <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #757575;">{topic_data['count']} mentions</span>
-                        <span style="background: #000000; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">{topic_data['percentage']:.1f}%</span>
+                    <div class="insight-desc">
+                        {insight['description']}
                     </div>
                 </div>
                 """
             
             html_content += '</div></div>'
         
+        # Strategic Recommendations
+        html_content += f"""
+        <div class="section">
+            <h2 class="section-title">
+                <span class="emoji">🎯</span>
+                STRATEGIC RECOMMENDATIONS
+            </h2>
+            <div class="insight-grid">
+        """
+        
+        # Generate specific recommendations based on data
+        recommendations = []
+        
+        if positive_rate < 70:
+            recommendations.append({
+                'title': 'URGENT: User Experience Overhaul Required',
+                'desc': f'With only {positive_rate:.1f}% positive sentiment, immediate UX improvements are critical. Focus on addressing top user complaints and streamlining core user journeys.',
+                'priority': 'HIGH',
+                'timeline': '2-3 months'
+            })
+        
+        if avg_rating < 4.0:
+            recommendations.append({
+                'title': 'Product Quality Enhancement Initiative',
+                'desc': f'Average rating of {avg_rating:.1f} indicates quality issues. Implement comprehensive testing, bug fixes, and feature stability improvements.',
+                'priority': 'HIGH',
+                'timeline': '1-2 months'
+            })
+        
+        if len(df_a) < 1000:
+            recommendations.append({
+                'title': 'User Acquisition & Engagement Campaign',
+                'desc': f'With {len(df_a):,} reviews, increase market visibility through targeted marketing, influencer partnerships, and user referral programs.',
+                'priority': 'MEDIUM',
+                'timeline': '3-6 months'
+            })
+        
+        negative_rate = (df_a['sentiment'] == 'Negative').mean() * 100
+        if negative_rate > 25:
+            recommendations.append({
+                'title': 'Crisis Management Protocol',
+                'desc': f'High negative sentiment ({negative_rate:.1f}%) requires immediate crisis response. Implement user feedback loops and rapid issue resolution processes.',
+                'priority': 'CRITICAL',
+                'timeline': 'IMMEDIATE'
+            })
+        
+        for i, rec in enumerate(recommendations[:4]):
+            priority_class = {
+                'CRITICAL': 'status-critical',
+                'HIGH': 'status-warning',
+                'MEDIUM': 'status-good',
+                'LOW': 'status-excellent'
+            }.get(rec['priority'], 'status-good')
+            
+            html_content += f"""
+            <div class="insight-card">
+                <div class="insight-title">
+                    🚀 {rec['title']}
+                    <div style="float: right;">
+                        <span class="status-badge {priority_class}" style="font-size: 0.7rem;">
+                            {rec['priority']} PRIORITY
+                        </span>
+                    </div>
+                </div>
+                <div class="insight-desc">
+                    {rec['desc']}<br><br>
+                    <strong>🕒 Timeline:</strong> {rec['timeline']}
+                </div>
+            </div>
+            """
+        
+        html_content += '</div></div>'
+        
         # Footer
         html_content += f"""
-            <div class="footer">
-                <div class="brand">FEEDBACKS FORGE</div>
-                <div>Professional Review Intelligence Platform | Created by Ayush Pandey</div>
-                <div>Advanced Analytics & Business Intelligence Solutions</div>
-                <div style="margin-top: 20px; font-size: 14px;">
-                    This report contains proprietary analysis and should be treated as confidential business intelligence.
+                </div>
+                
+                <div class="footer">
+                    <h3>🚀 FEEDBACKS FORGE PRO</h3>
+                    <p>Advanced Review Intelligence Platform | Executive Report</p>
+                    <p>Generated with AI-powered analytics and strategic intelligence</p>
+                    <div style="margin-top: 30px; font-size: 0.9rem; opacity: 0.8;">
+                        This report contains confidential business intelligence and strategic insights.<br>
+                        © {datetime.now().year} Feedbacks Forge Pro - All Rights Reserved
+                    </div>
                 </div>
             </div>
         </body>
@@ -1051,603 +2025,14 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
         return html_content.encode('utf-8')
         
     except Exception as e:
-        return f"Error generating report: {str(e)}".encode('utf-8')
+        return f"Error generating executive report: {str(e)}".encode('utf-8')
 
-def navigate_to(page):
-    st.session_state.page = page
-    st.rerun()
-
-def display_review_cards(df, title, max_reviews=10):
-    st.markdown(f"""
-    <div class="content-section">
-        <div class="section-header">{title}</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if 'at' in df.columns:
-        df_sorted = df.sort_values('at', ascending=False).head(max_reviews)
-    else:
-        df_sorted = df.head(max_reviews)
-    
-    for _, review in df_sorted.iterrows():
-        sentiment = review.get('sentiment', 'Neutral')
-        badge_class = f"sentiment-{sentiment.lower()}"
-        
-        rating = review.get('score', 0)
-        stars = "★" * int(rating) + "☆" * (5 - int(rating))
-        
-        if 'at' in review and pd.notna(review['at']):
-            date_str = pd.to_datetime(review['at']).strftime('%B %d, %Y')
-        else:
-            date_str = "Unknown date"
-        
-        content = str(review.get('content', 'No content available'))
-        if len(content) > 400:
-            content = content[:400] + "..."
-        
-        st.markdown(f"""
-        <div class="review-card">
-            <div class="review-header">
-                <div class="review-user">{review.get('userName', 'Anonymous User')}</div>
-                <div class="review-rating">
-                    <span style="margin-left: 10px; color: #757575; font-weight: 600;">Rating: {rating}/5</span>
-                </div>
-            </div>
-            <div class="review-content">{content}</div>
-            <div class="review-meta">
-                <div style="color: #757575;">{date_str}</div>
-                <div class="sentiment-badge {badge_class}">{sentiment}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-# HOME PAGE
-if st.session_state.page == 'home':
-    st.markdown("""
-    <div class="header-container">
-        <div class="app-title">Feedbacks Forge</div>
-        <div class="app-subtitle">Advanced Professional Review Intelligence Platform</div>
-        <div class="creator-badge">developed by ayush_pandey</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="content-section" style="text-align: center;">
-        <div class="section-header">WELCOME TO ADVANCED ANALYTICS</div>
-        <p style="color: #757575; font-size: 1.1rem; line-height: 1.8; margin-bottom: 40px; max-width: 800px; margin-left: auto; margin-right: auto;">
-            Professional-grade review analysis platform with advanced AI intelligence, 
-            comprehensive competitive analysis, and modern interface design.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        <div class="content-section" style="text-align: center; min-height: 250px; display: flex; flex-direction: column; justify-content: center;">
-            <div class="section-header">SINGLE APPLICATION ANALYSIS</div>
-            <p style="color: #757575; margin-bottom: 35px; line-height: 1.6;">
-                Comprehensive deep-dive analysis of individual applications with advanced AI insights, 
-                topic discovery, and professional reporting capabilities.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("INITIATE SINGLE ANALYSIS", type="primary"):
-            st.session_state.comparison_mode = False
-            navigate_to('analysis')
-    
-    with col2:
-        st.markdown("""
-        <div class="content-section" style="text-align: center; min-height: 250px; display: flex; flex-direction: column; justify-content: center;">
-            <div class="section-header">COMPETITIVE COMPARISON</div>
-            <p style="color: #757575; margin-bottom: 35px; line-height: 1.6;">
-                Head-to-head competitive analysis with side-by-side metrics, 
-                comparative visualizations, and strategic intelligence reports.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("LAUNCH COMPETITIVE MODE", type="primary"):
-            st.session_state.comparison_mode = True
-            navigate_to('analysis')
-
-# ANALYSIS PAGE
-elif st.session_state.page == 'analysis':
-    mode_text = "COMPETITIVE COMPARISON MODE" if st.session_state.comparison_mode else "SINGLE APPLICATION ANALYSIS"
-    st.markdown(f"""
-    <div class="header-container">
-        <div class="app-title">ANALYSIS DASHBOARD</div>
-        <div class="app-subtitle">{mode_text} ACTIVE</div>
-        <div class="creator-badge">mode: {'competitive' if st.session_state.comparison_mode else 'single'}</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("◀ RETURN TO HOME", type="secondary"):
-        navigate_to('home')
-    
-    # URL Configuration
-    if st.session_state.comparison_mode:
-        st.markdown("### COMPETITIVE ANALYSIS CONFIGURATION")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            <div style="background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid #000000;">
-                <div style="color: #000000; font-weight: 600; font-size: 1rem; margin-bottom: 10px;">
-                    APPLICATION A TARGET
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            url_a = st.text_area("Primary Application URL", placeholder="https://play.google.com/store/apps/details?id=...", height=100)
-        
-        with col2:
-            st.markdown("""
-            <div style="background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid #404040;">
-                <div style="color: #404040; font-weight: 600; font-size: 1rem; margin-bottom: 10px;">
-                    APPLICATION B COMPETITOR
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            url_b = st.text_area("Competitor Application URL", placeholder="https://play.google.com/store/apps/details?id=...", height=100)
-    else:
-        st.markdown("### SINGLE APPLICATION ANALYSIS")
-        url_a = st.text_area("Application URL", placeholder="https://play.google.com/store/apps/details?id=...", height=100)
-        url_b = None
-    
-    # Parameters
-    st.markdown("### ANALYSIS PARAMETERS")
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        count = st.slider("Reviews per App", 50, 2000, 500, 50)
-    with col2:
-        language = st.selectbox("Language", ["en", "hi", "es", "fr", "de", "ja"])
-    with col3:
-        country = st.selectbox("Region", ["in", "us", "uk", "ca", "de", "jp"])
-    with col4:
-        sort_by = st.selectbox("Sort Method", ["NEWEST", "MOST_RELEVANT", "RATING"])
-    
-    # Advanced Options
-    with st.expander("ADVANCED CONFIGURATION", expanded=False):
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            enable_insights = st.checkbox("AI Intelligence Module", value=True)
-            enable_topics = st.checkbox("Topic Discovery Engine", value=True)
-        with col2:
-            min_rating = st.selectbox("Minimum Rating Filter", [1, 2, 3, 4, 5])
-            max_reviews_display = st.slider("Reviews to Display", 5, 50, 15)
-        with col3:
-            enable_keywords = st.checkbox("Keyword Tracking", value=True)
-    
-    keywords = []
-    if enable_keywords:
-        keyword_input = st.text_input("Keywords to Track", placeholder="performance, bug, excellent, slow, crash")
-        if keyword_input:
-            keywords = [k.strip().lower() for k in keyword_input.split(",")]
-    
-    # Execute Analysis
-    if st.button("EXECUTE COMPREHENSIVE ANALYSIS", type="primary"):
-        # Validation
-        if not url_a.strip():
-            st.error("PRIMARY APPLICATION URL IS REQUIRED")
-            st.stop()
-        
-        if st.session_state.comparison_mode and not url_b.strip():
-            st.error("COMPETITOR APPLICATION URL IS REQUIRED")
-            st.stop()
-        
-        package_a = extract_package_name(url_a)
-        package_b = extract_package_name(url_b) if url_b else None
-        
-        if not package_a:
-            st.error("INVALID URL FORMAT FOR PRIMARY APPLICATION")
-            st.stop()
-        
-        if st.session_state.comparison_mode and not package_b:
-            st.error("INVALID URL FORMAT FOR COMPETITOR APPLICATION")
-            st.stop()
-        
-        # Progress Section
-        st.markdown("""
-        <div class="progress-section">
-            <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 15px;">
-                <span class="loading-spinner"></span>
-                ANALYSIS PIPELINE EXECUTING
-            </div>
-            <div style="color: #757575; font-size: 1rem;">
-                Processing review data through advanced AI algorithms...
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        progress_bar = st.progress(0)
-        status_container = st.empty()
-        
-        # Process applications
-        try:
-            sort_mapping = {"NEWEST": Sort.NEWEST, "MOST_RELEVANT": Sort.MOST_RELEVANT, "RATING": Sort.RATING}
-            
-            # Process App A
-            status_container.markdown(f"""
-            <div class="status-card">
-                <strong style="color: #000000; font-size: 1.1rem;">PROCESSING: {get_app_name(package_a)}</strong><br>
-                <div style="color: #757575; margin-top: 8px;">Extracting {count:,} reviews and performing sentiment analysis...</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            result_a, _ = reviews(package_a, lang=language, country=country, sort=sort_mapping[sort_by], count=count)
-            
-            if result_a:
-                df_a = pd.DataFrame(result_a)
-                df_a["package"] = package_a
-                df_a["app_name"] = get_app_name(package_a)
-                
-                sentiment_results = df_a["content"].apply(analyze_sentiment_advanced)
-                df_a["sentiment"] = [r[0] for r in sentiment_results]
-                df_a["polarity_score"] = [r[1] for r in sentiment_results]
-                df_a["subjectivity_score"] = [r[2] for r in sentiment_results]
-                df_a["business_impact"] = [r[3] for r in sentiment_results]
-                df_a["at"] = pd.to_datetime(df_a["at"])
-                df_a = df_a[df_a["score"] >= min_rating].copy()
-            else:
-                st.error("FAILED TO EXTRACT REVIEWS FOR PRIMARY APPLICATION")
-                st.stop()
-            
-            progress_bar.progress(0.5)
-            
-            # Process App B if needed
-            df_b = None
-            if st.session_state.comparison_mode:
-                status_container.markdown(f"""
-                <div class="status-card">
-                    <strong style="color: #404040; font-size: 1.1rem;">PROCESSING: {get_app_name(package_b)}</strong><br>
-                    <div style="color: #757575; margin-top: 8px;">Extracting {count:,} reviews and performing competitive analysis...</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                result_b, _ = reviews(package_b, lang=language, country=country, sort=sort_mapping[sort_by], count=count)
-                
-                if result_b:
-                    df_b = pd.DataFrame(result_b)
-                    df_b["package"] = package_b
-                    df_b["app_name"] = get_app_name(package_b)
-                    
-                    sentiment_results = df_b["content"].apply(analyze_sentiment_advanced)
-                    df_b["sentiment"] = [r[0] for r in sentiment_results]
-                    df_b["polarity_score"] = [r[1] for r in sentiment_results]
-                    df_b["subjectivity_score"] = [r[2] for r in sentiment_results]
-                    df_b["business_impact"] = [r[3] for r in sentiment_results]
-                    df_b["at"] = pd.to_datetime(df_b["at"])
-                    df_b = df_b[df_b["score"] >= min_rating].copy()
-                else:
-                    st.error("FAILED TO EXTRACT REVIEWS FOR COMPETITOR APPLICATION")
-                    st.stop()
-            
-            progress_bar.progress(0.8)
-            
-            # Generate insights
-            status_container.markdown("""
-            <div class="status-card">
-                <strong style="color: #757575; font-size: 1.1rem;">GENERATING AI INTELLIGENCE</strong><br>
-                <div style="color: #757575; margin-top: 8px;">Processing advanced insights and topic discovery...</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            insights_a = generate_advanced_ai_insights(df_a) if enable_insights else []
-            topics_a = perform_enhanced_topic_analysis(df_a) if enable_topics else {}
-            insights_b = generate_advanced_ai_insights(df_b) if enable_insights and df_b is not None else []
-            topics_b = perform_enhanced_topic_analysis(df_b) if enable_topics and df_b is not None else {}
-            
-            progress_bar.progress(1.0)
-            
-        except Exception as e:
-            st.error(f"PROCESSING ERROR: {str(e)}")
-            st.stop()
-        
-        # Clear progress
-        status_container.empty()
-        progress_bar.empty()
-        
-        # Success
-        total_reviews = len(df_a) + (len(df_b) if df_b is not None else 0)
-        st.success(f"ANALYSIS COMPLETED: {total_reviews:,} reviews processed with advanced AI intelligence")
-        
-        # Display Metrics
-        if st.session_state.comparison_mode and df_b is not None:
-            st.markdown("## COMPETITIVE METRICS DASHBOARD")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown(f"""
-                <div style="background: white; padding: 25px; margin-bottom: 25px; border-left: 4px solid #000000;">
-                    <div style="color: #000000; font-size: 1.2rem; font-weight: 600; margin-bottom: 25px; text-align: center;">
-                        {get_app_name(package_a).upper()}
-                    </div>
-                    <div class="metrics-grid" style="grid-template-columns: 1fr 1fr;">
-                        <div class="metric-card">
-                            <div class="metric-value">{len(df_a):,}</div>
-                            <div class="metric-label">Reviews</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value">{df_a['score'].mean():.1f}</div>
-                            <div class="metric-label">Avg Rating</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value">{(df_a['sentiment'] == 'Positive').mean() * 100:.1f}%</div>
-                            <div class="metric-label">Positive</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value">{df_a['polarity_score'].mean():.2f}</div>
-                            <div class="metric-label">Sentiment</div>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                st.markdown(f"""
-                <div style="background: white; padding: 25px; margin-bottom: 25px; border-left: 4px solid #404040;">
-                    <div style="color: #404040; font-size: 1.2rem; font-weight: 600; margin-bottom: 25px; text-align: center;">
-                        {get_app_name(package_b).upper()}
-                    </div>
-                    <div class="metrics-grid" style="grid-template-columns: 1fr 1fr;">
-                        <div class="metric-card">
-                            <div class="metric-value">{len(df_b):,}</div>
-                            <div class="metric-label">Reviews</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value">{df_b['score'].mean():.1f}</div>
-                            <div class="metric-label">Avg Rating</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value">{(df_b['sentiment'] == 'Positive').mean() * 100:.1f}%</div>
-                            <div class="metric-label">Positive</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value">{df_b['polarity_score'].mean():.2f}</div>
-                            <div class="metric-label">Sentiment</div>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        else:
-            st.markdown("## COMPREHENSIVE METRICS OVERVIEW")
-            st.markdown(f"""
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-value">{len(df_a):,}</div>
-                    <div class="metric-label">Total Reviews</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{df_a['score'].mean():.1f}</div>
-                    <div class="metric-label">Average Rating</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{(df_a['sentiment'] == 'Positive').mean() * 100:.1f}%</div>
-                    <div class="metric-label">Positive Rate</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{df_a['polarity_score'].mean():.2f}</div>
-                    <div class="metric-label">Sentiment Score</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{(df_a['sentiment'] == 'Negative').mean() * 100:.1f}%</div>
-                    <div class="metric-label">Negative Rate</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{df_a['subjectivity_score'].mean():.2f}</div>
-                    <div class="metric-label">Subjectivity</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # AI Insights
-        if enable_insights and (insights_a or insights_b):
-            st.markdown("""
-            <div class="ai-insights">
-                <h2 style="color: #000000; margin-bottom: 30px;">
-                    ADVANCED AI STRATEGIC INTELLIGENCE
-                </h2>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if st.session_state.comparison_mode and insights_b:
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    if insights_a:
-                        st.markdown(f"### {get_app_name(package_a).upper()} INSIGHTS")
-                        for insight in insights_a[:4]:
-                            css_class = "insight-item positive" if insight['type'] == 'positive' else "insight-item warning"
-                            icon = "✓" if insight['type'] == 'positive' else "⚠"
-                            st.markdown(f"""
-                            <div class="{css_class}">
-                                <h5 style="color: #000000; margin-bottom: 12px; font-size: 1.1rem;">{icon} {insight['title']}</h5>
-                                <p style="color: #292929; margin: 0; line-height: 1.6;">{insight['description']}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                
-                with col2:
-                    if insights_b:
-                        st.markdown(f"### {get_app_name(package_b).upper()} INSIGHTS")
-                        for insight in insights_b[:4]:
-                            css_class = "insight-item positive" if insight['type'] == 'positive' else "insight-item warning"
-                            icon = "✓" if insight['type'] == 'positive' else "⚠"
-                            st.markdown(f"""
-                            <div class="{css_class}">
-                                <h5 style="color: #404040; margin-bottom: 12px; font-size: 1.1rem;">{icon} {insight['title']}</h5>
-                                <p style="color: #292929; margin: 0; line-height: 1.6;">{insight['description']}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-            else:
-                for insight in insights_a[:5]:
-                    css_class = "insight-item positive" if insight['type'] == 'positive' else "insight-item warning"
-                    icon = "✓" if insight['type'] == 'positive' else "⚠"
-                    st.markdown(f"""
-                    <div class="{css_class}">
-                        <h5 style="color: #000000; margin-bottom: 12px; font-size: 1.1rem;">{icon} {insight['title']}</h5>
-                        <p style="color: #292929; margin: 0; line-height: 1.6;">{insight['description']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-        
-        # Enhanced Visualizations
-        st.markdown("""
-        <div class="content-section">
-            <div class="section-header">ADVANCED VISUALIZATION ANALYTICS</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        charts = create_enhanced_charts(df_a, df_b)
-        for chart_name, chart in charts.items():
-            st.plotly_chart(chart, use_container_width=True)
-        
-        # Individual Reviews
-        st.markdown("""
-        <div class="content-section">
-            <div class="section-header">INDIVIDUAL REVIEW ANALYSIS</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if st.session_state.comparison_mode and df_b is not None:
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                display_review_cards(df_a, f"{get_app_name(package_a).upper()} REVIEWS", max_reviews_display)
-            
-            with col2:
-                display_review_cards(df_b, f"{get_app_name(package_b).upper()} REVIEWS", max_reviews_display)
-        else:
-            display_review_cards(df_a, f"{get_app_name(package_a).upper()} REVIEWS", max_reviews_display)
-        
-        # Export Section
-        st.markdown("""
-        <div class="content-section">
-            <div class="section-header">PROFESSIONAL EXPORT SUITE</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown('<div class="export-container">', unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("""
-            <div class="export-card">
-                <div class="export-title">COMPREHENSIVE INTELLIGENCE REPORT</div>
-                <div class="export-desc">
-                    Professional HTML report with AI insights, competitive analysis, 
-                    topic discovery, and executive summary with branded presentation.
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            all_insights = insights_a + (insights_b if insights_b else [])
-            all_topics = {**topics_a, **(topics_b if topics_b else {})}
-            report_content = generate_professional_pdf(df_a, df_b, all_insights, all_topics)
-            
-            st.download_button(
-                "DOWNLOAD PROFESSIONAL REPORT",
-                data=report_content,
-                file_name=f"FeedbacksForge_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
-                mime="text/html",
-                type="primary"
-            )
-        
-        with col2:
-            st.markdown("""
-            <div class="export-card">
-                <div class="export-title">COMPLETE DATASET EXPORT</div>
-                <div class="export-desc">
-                    Full review database with enhanced sentiment analysis, 
-                    business intelligence metrics, and processed data points.
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if df_b is not None:
-                combined_df = pd.concat([df_a, df_b], ignore_index=True)
-                csv_data = combined_df.to_csv(index=False).encode('utf-8')
-            else:
-                csv_data = df_a.to_csv(index=False).encode('utf-8')
-            
-            st.download_button(
-                "DOWNLOAD COMPLETE DATASET",
-                data=csv_data,
-                file_name=f"FeedbacksForge_Dataset_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv"
-            )
-        
-        with col3:
-            st.markdown("""
-            <div class="export-card">
-                <div class="export-title">EXECUTIVE SUMMARY</div>
-                <div class="export-desc">
-                    High-level strategic metrics and KPIs formatted for 
-                    executive presentations and stakeholder briefings.
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if df_b is not None:
-                summary_data = [{
-                    "Application": get_app_name(package_a),
-                    "Total_Reviews": len(df_a),
-                    "Average_Rating": round(df_a["score"].mean(), 2),
-                    "Positive_Rate_Percent": f"{(df_a['sentiment'] == 'Positive').mean() * 100:.1f}%",
-                    "Sentiment_Score": round(df_a["polarity_score"].mean(), 3),
-                    "Market_Position": "Leader" if df_a["score"].mean() > df_b["score"].mean() else "Challenger"
-                }, {
-                    "Application": get_app_name(package_b),
-                    "Total_Reviews": len(df_b),
-                    "Average_Rating": round(df_b["score"].mean(), 2),
-                    "Positive_Rate_Percent": f"{(df_b['sentiment'] == 'Positive').mean() * 100:.1f}%",
-                    "Sentiment_Score": round(df_b["polarity_score"].mean(), 3),
-                    "Market_Position": "Leader" if df_b["score"].mean() > df_a["score"].mean() else "Challenger"
-                }]
-            else:
-                avg_rating = df_a["score"].mean()
-                positive_rate = (df_a['sentiment'] == 'Positive').mean() * 100
-                market_position = "Leader" if avg_rating > 4.0 and positive_rate > 70 else "Strong" if avg_rating > 3.5 and positive_rate > 50 else "Developing"
-                
-                summary_data = [{
-                    "Application": get_app_name(package_a),
-                    "Total_Reviews": len(df_a),
-                    "Average_Rating": round(avg_rating, 2),
-                    "Positive_Rate_Percent": f"{positive_rate:.1f}%",
-                    "Sentiment_Score": round(df_a["polarity_score"].mean(), 3),
-                    "Market_Position": market_position
-                }]
-            
-            summary_df = pd.DataFrame(summary_data)
-            summary_csv = summary_df.to_csv(index=False).encode('utf-8')
-            
-            st.download_button(
-                "DOWNLOAD EXECUTIVE SUMMARY",
-                data=summary_csv,
-                file_name=f"FeedbacksForge_Summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv"
-            )
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# Professional Footer
-st.markdown("""
-<div style="text-align: center; color: #757575; padding: 40px; margin-top: 50px; 
-           border-top: 1px solid #e6e6e6; background: white;">
-    <div style="color: #000000; font-size: 1.1rem; font-weight: 600; margin-bottom: 15px;">
-        FEEDBACKS FORGE v3.0
-    </div>
-    <div style="margin-bottom: 15px;">
-        Professional Review Intelligence Platform | Created by <strong style="color: #000000;">Ayush Pandey</strong>
-    </div>
-    <div style="font-size: 0.9rem; color: #757575; line-height: 1.6;">
-        Advanced AI Analytics • Modern Interface • Professional Intelligence<br>
-        Transform Review Data Into Strategic Business Advantage
-    </div>
-</div>
-""", unsafe_allow_html=True)
+def create_enriched_dataset(df_a, df_b=None):
+    """Create enriched dataset with advanced features"""
+    try:
+        # Combine datasets if both available
+        if df_b is not None:
+            df_a['app_type'] = 'Primary'
+            df_b['app_type'] = 'Competitor'
+            combined_df = pd.concat([df_a, df_b], ignore_index=True)
+        else
