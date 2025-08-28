@@ -12,137 +12,131 @@ import json
 
 # Page Configuration
 st.set_page_config(
-    page_title="TerminalAnalyzer Pro", 
-    page_icon="📊",
+    page_title="Feedbacks Forge", 
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Modern Professional CSS
+# Medium-inspired Professional CSS
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     .stApp {
-        background: #f8fafc;
-        color: #334155;
+        background: #ffffff;
+        color: #292929;
         font-family: 'Inter', sans-serif;
     }
     
     .header-container {
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-        border-radius: 12px;
-        padding: 30px 40px;
-        margin: 20px 0;
-        color: white;
-        box-shadow: 0 4px 20px rgba(79, 70, 229, 0.15);
+        background: #ffffff;
+        border-radius: 0;
+        padding: 40px 0;
+        margin: 0 0 30px 0;
+        color: #292929;
+        box-shadow: none;
         position: relative;
         overflow: hidden;
-    }
-    
-    .header-container::before {
-        content: '';
-        position: absolute;
-        top: -20px;
-        right: -20px;
-        width: 120px;
-        height: 120px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 50%;
+        border-bottom: 1px solid #e6e6e6;
     }
     
     .app-title {
-        font-size: 2.5rem;
+        font-size: 2.8rem;
         font-weight: 700;
         margin: 10px 0 5px 0;
+        color: #000000;
+        letter-spacing: -0.5px;
     }
     
     .app-subtitle {
-        font-size: 1.1rem;
-        opacity: 0.9;
+        font-size: 1.2rem;
+        color: #757575;
         margin-bottom: 15px;
+        font-weight: 400;
     }
     
     .creator-badge {
         position: absolute;
         bottom: 20px;
         right: 30px;
-        background: rgba(255, 255, 255, 0.2);
+        background: #f9f9f9;
         padding: 8px 16px;
-        border-radius: 20px;
+        border-radius: 4px;
         font-size: 0.9rem;
         font-weight: 500;
+        color: #757575;
     }
     
     /* Enhanced Buttons */
     .stButton>button {
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        background: #000000;
         color: white;
         border: none;
-        border-radius: 8px;
+        border-radius: 4px;
         padding: 12px 24px;
-        font-weight: 600;
+        font-weight: 500;
         transition: all 0.3s ease;
-        box-shadow: 0 2px 10px rgba(79, 70, 229, 0.2);
+        box-shadow: none;
     }
     
     .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
-        background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+        transform: none;
+        box-shadow: none;
+        background: #292929;
     }
     
     /* Content Sections */
     .content-section {
         background: white;
-        border-radius: 12px;
-        padding: 25px;
+        border-radius: 0;
+        padding: 25px 0;
         margin: 20px 0;
-        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
-        border-left: 4px solid #4f46e5;
+        box-shadow: none;
+        border-left: none;
     }
     
     .section-header {
-        font-size: 1.4rem;
-        font-weight: 600;
-        color: #1e293b;
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #e2e8f0;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #000000;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e6e6e6;
     }
     
     /* Metrics Grid */
     .metrics-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        margin: 25px 0;
+        gap: 20px;
+        margin: 30px 0;
     }
     
     .metric-card {
         background: white;
-        border-radius: 10px;
-        padding: 20px;
+        border-radius: 0;
+        padding: 25px;
         text-align: center;
         transition: all 0.3s ease;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        border: 1px solid #f1f5f9;
+        box-shadow: none;
+        border: 1px solid #e6e6e6;
     }
     
     .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        transform: none;
+        box-shadow: none;
     }
     
     .metric-value {
         font-size: 2.2rem;
         font-weight: 700;
-        color: #4f46e5;
+        color: #000000;
         margin-bottom: 8px;
     }
     
     .metric-label {
-        color: #64748b;
+        color: #757575;
         font-size: 0.9rem;
         font-weight: 500;
     }
@@ -150,16 +144,16 @@ st.markdown("""
     /* Review Cards */
     .review-card {
         background: white;
-        border-radius: 10px;
-        padding: 20px;
-        margin: 15px 0;
+        border-radius: 0;
+        padding: 25px;
+        margin: 20px 0;
         transition: all 0.3s ease;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        border: 1px solid #f1f5f9;
+        box-shadow: none;
+        border: 1px solid #e6e6e6;
     }
     
     .review-card:hover {
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        box-shadow: none;
     }
     
     .review-header {
@@ -168,11 +162,11 @@ st.markdown("""
         align-items: center;
         margin-bottom: 15px;
         padding-bottom: 10px;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid #f1f1f1;
     }
     
     .review-user {
-        color: #1e293b;
+        color: #000000;
         font-weight: 600;
     }
     
@@ -183,112 +177,114 @@ st.markdown("""
     }
     
     .star-rating {
-        color: #f59e0b;
+        color: #000000;
         font-size: 1.1rem;
     }
     
     .review-content {
-        color: #475569;
-        line-height: 1.6;
+        color: #292929;
+        line-height: 1.7;
         margin: 15px 0;
+        font-size: 1.05rem;
     }
     
     .review-meta {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        color: #94a3b8;
+        color: #757575;
         font-size: 0.85rem;
         margin-top: 15px;
         padding-top: 10px;
-        border-top: 1px solid #f1f5f9;
+        border-top: 1px solid #f1f1f1;
     }
     
     .sentiment-badge {
         padding: 5px 12px;
-        border-radius: 12px;
+        border-radius: 4px;
         font-size: 0.8rem;
         font-weight: 600;
     }
     
     .sentiment-positive {
-        background: #dcfce7;
-        color: #16a34a;
+        background: #f2f8f0;
+        color: #2e7d32;
     }
     
     .sentiment-negative {
-        background: #fee2e2;
-        color: #dc2626;
+        background: #fdf0f0;
+        color: #d32f2f;
     }
     
     .sentiment-neutral {
-        background: #fef3c7;
-        color: #d97706;
+        background: #fef9e7;
+        color: #ed6c02;
     }
     
     /* AI Insights */
     .ai-insights {
-        background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
-        border-radius: 12px;
+        background: #f9f9f9;
+        border-radius: 0;
         padding: 30px;
-        margin: 25px 0;
+        margin: 30px 0;
         position: relative;
     }
     
     .insight-item {
         background: white;
-        border-radius: 10px;
+        border-radius: 0;
         padding: 20px;
         margin: 15px 0;
         transition: all 0.3s ease;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        box-shadow: none;
+        border: 1px solid #e6e6e6;
     }
     
     .insight-item:hover {
-        transform: translateX(5px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        transform: none;
+        box-shadow: none;
     }
     
     .insight-item.warning {
-        border-left: 4px solid #ef4444;
+        border-left: 4px solid #d32f2f;
     }
     
     .insight-item.positive {
-        border-left: 4px solid #10b981;
+        border-left: 4px solid #2e7d32;
     }
     
     /* Export Cards */
     .export-container {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
-        margin: 25px 0;
+        gap: 25px;
+        margin: 30px 0;
     }
     
     .export-card {
         background: white;
-        border-radius: 12px;
-        padding: 25px;
+        border-radius: 0;
+        padding: 30px;
         text-align: center;
         transition: all 0.3s ease;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        border: 1px solid #f1f5f9;
+        box-shadow: none;
+        border: 1px solid #e6e6e6;
     }
     
     .export-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        transform: none;
+        box-shadow: none;
     }
     
     .export-title {
-        color: #4f46e5;
-        font-size: 1.1rem;
+        color: #000000;
+        font-size: 1.2rem;
         font-weight: 600;
-        margin-bottom: 12px;
+        margin-bottom: 15px;
     }
     
     .export-desc {
-        color: #64748b;
+        color: #757575;
         line-height: 1.6;
         margin-bottom: 20px;
     }
@@ -296,18 +292,20 @@ st.markdown("""
     /* Progress Section */
     .progress-section {
         background: white;
-        border-radius: 12px;
+        border-radius: 0;
         padding: 30px;
         text-align: center;
         margin: 20px 0;
-        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+        box-shadow: none;
+        border: 1px solid #e6e6e6;
     }
     
     .status-card {
-        background: #f8fafc;
-        border-radius: 10px;
+        background: #f9f9f9;
+        border-radius: 0;
         padding: 20px;
         margin: 15px 0;
+        border: 1px solid #e6e6e6;
     }
     
     /* Loading Spinner */
@@ -315,8 +313,8 @@ st.markdown("""
         display: inline-block;
         width: 20px;
         height: 20px;
-        border: 3px solid rgba(79, 70, 229, 0.3);
-        border-top: 3px solid #4f46e5;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-top: 3px solid #000000;
         border-radius: 50%;
         animation: spin 1s linear infinite;
         margin-right: 10px;
@@ -329,24 +327,24 @@ st.markdown("""
     
     /* Input Styling */
     .stTextArea textarea {
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        border: 1px solid #e6e6e6;
         padding: 12px;
     }
     
     .stTextArea textarea:focus {
-        border-color: #4f46e5;
-        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        border-color: #000000;
+        box-shadow: 0 0 0 1px #000000;
     }
     
     /* Selectbox Styling */
     .stSelectbox div[data-baseweb="select"] {
-        border-radius: 8px;
+        border-radius: 4px;
     }
     
     /* Slider Styling */
     .stSlider div[data-baseweb="slider"] {
-        color: #4f46e5;
+        color: #000000;
     }
     
     /* Checkbox Styling */
@@ -357,7 +355,7 @@ st.markdown("""
     /* Expander Styling */
     .streamlit-expanderHeader {
         font-weight: 600;
-        color: #4f46e5;
+        color: #000000;
     }
     
     /* Custom Scrollbar */
@@ -366,22 +364,22 @@ st.markdown("""
     }
     
     ::-webkit-scrollbar-track {
-        background: #f1f5f9;
+        background: #f1f1f1;
     }
     
     ::-webkit-scrollbar-thumb {
-        background: #c7d2fe;
+        background: #c1c1c1;
         border-radius: 4px;
     }
     
     ::-webkit-scrollbar-thumb:hover {
-        background: #a5b4fc;
+        background: #a8a8a8;
     }
     
     /* Mobile Responsive */
     @media (max-width: 768px) {
         .app-title {
-            font-size: 2rem;
+            font-size: 2.2rem;
         }
         
         .metrics-grid {
@@ -602,8 +600,8 @@ def create_enhanced_charts(df_a, df_b=None):
         'layout': {
             'plot_bgcolor': 'rgba(255, 255, 255, 1)',
             'paper_bgcolor': 'rgba(255, 255, 255, 1)',
-            'font': {'color': '#334155', 'family': 'Inter, sans-serif'},
-            'colorway': ['#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444']
+            'font': {'color': '#292929', 'family': 'Inter, sans-serif'},
+            'colorway': ['#000000', '#404040', '#757575', '#a0a0a0', '#d0d0d0']
         }
     }
     
@@ -622,7 +620,7 @@ def create_enhanced_charts(df_a, df_b=None):
             name='Application A',
             x=x_pos,
             y=[sentiment_a.get(s, 0) for s in sentiments],
-            marker_color='#4f46e5',
+            marker_color='#000000',
             width=0.35
         ))
         
@@ -630,7 +628,7 @@ def create_enhanced_charts(df_a, df_b=None):
             name='Application B',
             x=x_pos_b,
             y=[sentiment_b.get(s, 0) for s in sentiments],
-            marker_color='#8b5cf6',
+            marker_color='#404040',
             width=0.35
         ))
         
@@ -665,7 +663,7 @@ def create_enhanced_charts(df_a, df_b=None):
             theta=categories,
             fill='toself',
             name='Application A',
-            line_color='#4f46e5'
+            line_color='#000000'
         ))
         
         fig_radar.add_trace(go.Scatterpolar(
@@ -673,7 +671,7 @@ def create_enhanced_charts(df_a, df_b=None):
             theta=categories,
             fill='toself',
             name='Application B',
-            line_color='#8b5cf6'
+            line_color='#404040'
         ))
         
         fig_radar.update_layout(
@@ -691,15 +689,15 @@ def create_enhanced_charts(df_a, df_b=None):
         # Single app enhanced charts
         if not df_a.empty:
             sentiment_counts = df_a['sentiment'].value_counts()
-            colors_map = {'Positive': '#10b981', 'Neutral': '#f59e0b', 'Negative': '#ef4444'}
+            colors_map = {'Positive': '#2e7d32', 'Neutral': '#ed6c02', 'Negative': '#d32f2f'}
             
             fig_pie = go.Figure(data=[go.Pie(
                 labels=sentiment_counts.index,
                 values=sentiment_counts.values,
                 hole=0.6,
-                marker=dict(colors=[colors_map.get(label, '#94a3b8') for label in sentiment_counts.index]),
+                marker=dict(colors=[colors_map.get(label, '#757575') for label in sentiment_counts.index]),
                 textinfo='label+percent',
-                textfont=dict(size=16, color='#334155')
+                textfont=dict(size=16, color='#292929')
             )])
             
             fig_pie.update_layout(
@@ -726,7 +724,7 @@ def create_enhanced_charts(df_a, df_b=None):
                                 y=daily_sentiment[sentiment],
                                 mode='lines+markers',
                                 name=f'{sentiment} Reviews',
-                                line=dict(color=colors_map.get(sentiment, '#94a3b8'), width=3),
+                                line=dict(color=colors_map.get(sentiment, '#757575'), width=3),
                                 marker=dict(size=8)
                             ))
                     
@@ -749,26 +747,26 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
         <html>
         <head>
             <meta charset="utf-8">
-            <title>TerminalAnalyzer Pro - Professional Report</title>
+            <title>Feedbacks Forge - Professional Report</title>
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
                 
                 body {{
                     font-family: 'Inter', sans-serif;
-                    background: #f8fafc;
-                    color: #334155;
+                    background: #ffffff;
+                    color: #292929;
                     margin: 0;
                     padding: 40px;
                     line-height: 1.6;
                 }}
                 
                 .header {{
-                    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-                    border-radius: 12px;
-                    padding: 40px;
+                    background: #ffffff;
+                    padding: 40px 0;
                     text-align: center;
                     margin-bottom: 40px;
-                    color: white;
+                    color: #000000;
+                    border-bottom: 1px solid #e6e6e6;
                 }}
                 
                 .logo {{
@@ -783,25 +781,23 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
                 }}
                 
                 .report-meta {{
-                    opacity: 0.9;
+                    color: #757575;
                     font-size: 14px;
                 }}
                 
                 .section {{
                     background: white;
-                    border-radius: 12px;
                     padding: 30px;
                     margin-bottom: 30px;
-                    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
                 }}
                 
                 .section-title {{
                     font-size: 20px;
                     font-weight: 600;
-                    color: #1e293b;
+                    color: #000000;
                     margin-bottom: 25px;
                     padding-bottom: 10px;
-                    border-bottom: 1px solid #e2e8f0;
+                    border-bottom: 1px solid #e6e6e6;
                 }}
                 
                 .metrics-grid {{
@@ -812,8 +808,7 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
                 }}
                 
                 .metric-card {{
-                    background: #f8fafc;
-                    border-radius: 10px;
+                    background: #f9f9f9;
                     padding: 20px;
                     text-align: center;
                 }}
@@ -821,28 +816,27 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
                 .metric-value {{
                     font-size: 28px;
                     font-weight: 700;
-                    color: #4f46e5;
+                    color: #000000;
                     margin-bottom: 8px;
                 }}
                 
                 .metric-label {{
-                    color: #64748b;
+                    color: #757575;
                     font-size: 14px;
                 }}
                 
                 .insight {{
-                    background: #f1f5f9;
+                    background: #f9f9f9;
                     padding: 20px;
                     margin: 15px 0;
-                    border-radius: 10px;
                 }}
                 
                 .insight.warning {{
-                    border-left: 4px solid #ef4444;
+                    border-left: 4px solid #d32f2f;
                 }}
                 
                 .insight.positive {{
-                    border-left: 4px solid #10b981;
+                    border-left: 4px solid #2e7d32;
                 }}
                 
                 .insight-title {{
@@ -852,7 +846,7 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
                 }}
                 
                 .insight-desc {{
-                    color: #475569;
+                    color: #292929;
                     font-size: 14px;
                     line-height: 1.6;
                 }}
@@ -865,14 +859,14 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
                 
                 .comparison-table th,
                 .comparison-table td {{
-                    border: 1px solid #e2e8f0;
+                    border: 1px solid #e6e6e6;
                     padding: 15px;
                     text-align: center;
                 }}
                 
                 .comparison-table th {{
-                    background: #f1f5f9;
-                    color: #4f46e5;
+                    background: #f9f9f9;
+                    color: #000000;
                     font-weight: 600;
                 }}
                 
@@ -880,8 +874,8 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
                     background: white;
                 }}
                 
-                .app-a {{ color: #4f46e5; }}
-                .app-b {{ color: #8b5cf6; }}
+                .app-a {{ color: #000000; }}
+                .app-b {{ color: #404040; }}
                 
                 .topic-grid {{
                     display: grid;
@@ -891,20 +885,19 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
                 }}
                 
                 .topic-card {{
-                    background: #f8fafc;
-                    border-radius: 10px;
+                    background: #f9f9f9;
                     padding: 20px;
                 }}
                 
                 .topic-title {{
-                    color: #4f46e5;
+                    color: #000000;
                     font-weight: 600;
                     font-size: 16px;
                     margin-bottom: 15px;
                 }}
                 
                 .topic-terms {{
-                    color: #64748b;
+                    color: #757575;
                     font-size: 14px;
                     line-height: 1.5;
                 }}
@@ -912,13 +905,13 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
                 .footer {{
                     text-align: center;
                     padding: 40px;
-                    border-top: 1px solid #e2e8f0;
+                    border-top: 1px solid #e6e6e6;
                     margin-top: 40px;
-                    color: #64748b;
+                    color: #757575;
                 }}
                 
                 .brand {{
-                    color: #4f46e5;
+                    color: #000000;
                     font-weight: 700;
                     font-size: 16px;
                 }}
@@ -926,11 +919,11 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
         </head>
         <body>
             <div class="header">
-                <div class="logo">TERMINALANALYZER PRO</div>
+                <div class="logo">FEEDBACKS FORGE</div>
                 <div class="report-title">Professional Intelligence Report</div>
                 <div class="report-meta">
                     Generated: {datetime.now().strftime('%B %d, %Y at %H:%M')} | 
-                    Advanced AI Analytics Platform
+                    Advanced Analytics Platform
                 </div>
             </div>
         """
@@ -1033,8 +1026,8 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
                         {', '.join(topic_data['terms'][:5])}
                     </div>
                     <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #64748b;">{topic_data['count']} mentions</span>
-                        <span style="background: #4f46e5; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">{topic_data['percentage']:.1f}%</span>
+                        <span style="color: #757575;">{topic_data['count']} mentions</span>
+                        <span style="background: #000000; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;">{topic_data['percentage']:.1f}%</span>
                     </div>
                 </div>
                 """
@@ -1044,9 +1037,9 @@ def generate_professional_pdf(df_a, df_b=None, insights=None, topics=None):
         # Footer
         html_content += f"""
             <div class="footer">
-                <div class="brand">TERMINALANALYZER PRO</div>
+                <div class="brand">FEEDBACKS FORGE</div>
                 <div>Professional Review Intelligence Platform | Created by Ayush Pandey</div>
-                <div>Advanced AI Analytics & Business Intelligence Solutions</div>
+                <div>Advanced Analytics & Business Intelligence Solutions</div>
                 <div style="margin-top: 20px; font-size: 14px;">
                     This report contains proprietary analysis and should be treated as confidential business intelligence.
                 </div>
@@ -1097,13 +1090,12 @@ def display_review_cards(df, title, max_reviews=10):
             <div class="review-header">
                 <div class="review-user">{review.get('userName', 'Anonymous User')}</div>
                 <div class="review-rating">
-                    <span class="star-rating">{stars}</span>
-                    <span style="margin-left: 10px; color: #64748b; font-weight: 600;">{rating}/5</span>
+                    <span style="margin-left: 10px; color: #757575; font-weight: 600;">Rating: {rating}/5</span>
                 </div>
             </div>
             <div class="review-content">{content}</div>
             <div class="review-meta">
-                <div style="color: #94a3b8;">{date_str}</div>
+                <div style="color: #757575;">{date_str}</div>
                 <div class="sentiment-badge {badge_class}">{sentiment}</div>
             </div>
         </div>
@@ -1113,7 +1105,7 @@ def display_review_cards(df, title, max_reviews=10):
 if st.session_state.page == 'home':
     st.markdown("""
     <div class="header-container">
-        <div class="app-title">TerminalAnalyzer Pro</div>
+        <div class="app-title">Feedbacks Forge</div>
         <div class="app-subtitle">Advanced Professional Review Intelligence Platform</div>
         <div class="creator-badge">developed by ayush_pandey</div>
     </div>
@@ -1122,7 +1114,7 @@ if st.session_state.page == 'home':
     st.markdown("""
     <div class="content-section" style="text-align: center;">
         <div class="section-header">WELCOME TO ADVANCED ANALYTICS</div>
-        <p style="color: #64748b; font-size: 1.1rem; line-height: 1.8; margin-bottom: 40px; max-width: 800px; margin-left: auto; margin-right: auto;">
+        <p style="color: #757575; font-size: 1.1rem; line-height: 1.8; margin-bottom: 40px; max-width: 800px; margin-left: auto; margin-right: auto;">
             Professional-grade review analysis platform with advanced AI intelligence, 
             comprehensive competitive analysis, and modern interface design.
         </p>
@@ -1134,9 +1126,8 @@ if st.session_state.page == 'home':
     with col1:
         st.markdown("""
         <div class="content-section" style="text-align: center; min-height: 250px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 3.5rem; margin-bottom: 25px; color: #4f46e5;">📱</div>
             <div class="section-header">SINGLE APPLICATION ANALYSIS</div>
-            <p style="color: #64748b; margin-bottom: 35px; line-height: 1.6;">
+            <p style="color: #757575; margin-bottom: 35px; line-height: 1.6;">
                 Comprehensive deep-dive analysis of individual applications with advanced AI insights, 
                 topic discovery, and professional reporting capabilities.
             </p>
@@ -1150,9 +1141,8 @@ if st.session_state.page == 'home':
     with col2:
         st.markdown("""
         <div class="content-section" style="text-align: center; min-height: 250px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 3.5rem; margin-bottom: 25px; color: #8b5cf6;">📊</div>
             <div class="section-header">COMPETITIVE COMPARISON</div>
-            <p style="color: #64748b; margin-bottom: 35px; line-height: 1.6;">
+            <p style="color: #757575; margin-bottom: 35px; line-height: 1.6;">
                 Head-to-head competitive analysis with side-by-side metrics, 
                 comparative visualizations, and strategic intelligence reports.
             </p>
@@ -1184,8 +1174,8 @@ elif st.session_state.page == 'analysis':
         
         with col1:
             st.markdown("""
-            <div style="background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #4f46e5;">
-                <div style="color: #4f46e5; font-weight: 600; font-size: 1rem; margin-bottom: 10px;">
+            <div style="background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid #000000;">
+                <div style="color: #000000; font-weight: 600; font-size: 1rem; margin-bottom: 10px;">
                     APPLICATION A TARGET
                 </div>
             </div>
@@ -1194,8 +1184,8 @@ elif st.session_state.page == 'analysis':
         
         with col2:
             st.markdown("""
-            <div style="background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #8b5cf6;">
-                <div style="color: #8b5cf6; font-weight: 600; font-size: 1rem; margin-bottom: 10px;">
+            <div style="background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid #404040;">
+                <div style="color: #404040; font-weight: 600; font-size: 1rem; margin-bottom: 10px;">
                     APPLICATION B COMPETITOR
                 </div>
             </div>
@@ -1267,7 +1257,7 @@ elif st.session_state.page == 'analysis':
                 <span class="loading-spinner"></span>
                 ANALYSIS PIPELINE EXECUTING
             </div>
-            <div style="color: #64748b; font-size: 1rem;">
+            <div style="color: #757575; font-size: 1rem;">
                 Processing review data through advanced AI algorithms...
             </div>
         </div>
@@ -1283,8 +1273,8 @@ elif st.session_state.page == 'analysis':
             # Process App A
             status_container.markdown(f"""
             <div class="status-card">
-                <strong style="color: #4f46e5; font-size: 1.1rem;">PROCESSING: {get_app_name(package_a)}</strong><br>
-                <div style="color: #64748b; margin-top: 8px;">Extracting {count:,} reviews and performing sentiment analysis...</div>
+                <strong style="color: #000000; font-size: 1.1rem;">PROCESSING: {get_app_name(package_a)}</strong><br>
+                <div style="color: #757575; margin-top: 8px;">Extracting {count:,} reviews and performing sentiment analysis...</div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -1313,8 +1303,8 @@ elif st.session_state.page == 'analysis':
             if st.session_state.comparison_mode:
                 status_container.markdown(f"""
                 <div class="status-card">
-                    <strong style="color: #8b5cf6; font-size: 1.1rem;">PROCESSING: {get_app_name(package_b)}</strong><br>
-                    <div style="color: #64748b; margin-top: 8px;">Extracting {count:,} reviews and performing competitive analysis...</div>
+                    <strong style="color: #404040; font-size: 1.1rem;">PROCESSING: {get_app_name(package_b)}</strong><br>
+                    <div style="color: #757575; margin-top: 8px;">Extracting {count:,} reviews and performing competitive analysis...</div>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -1341,8 +1331,8 @@ elif st.session_state.page == 'analysis':
             # Generate insights
             status_container.markdown("""
             <div class="status-card">
-                <strong style="color: #ec4899; font-size: 1.1rem;">GENERATING AI INTELLIGENCE</strong><br>
-                <div style="color: #64748b; margin-top: 8px;">Processing advanced insights and topic discovery...</div>
+                <strong style="color: #757575; font-size: 1.1rem;">GENERATING AI INTELLIGENCE</strong><br>
+                <div style="color: #757575; margin-top: 8px;">Processing advanced insights and topic discovery...</div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -1373,8 +1363,8 @@ elif st.session_state.page == 'analysis':
             
             with col1:
                 st.markdown(f"""
-                <div style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; border-left: 4px solid #4f46e5;">
-                    <div style="color: #4f46e5; font-size: 1.2rem; font-weight: 600; margin-bottom: 25px; text-align: center;">
+                <div style="background: white; padding: 25px; margin-bottom: 25px; border-left: 4px solid #000000;">
+                    <div style="color: #000000; font-size: 1.2rem; font-weight: 600; margin-bottom: 25px; text-align: center;">
                         {get_app_name(package_a).upper()}
                     </div>
                     <div class="metrics-grid" style="grid-template-columns: 1fr 1fr;">
@@ -1400,8 +1390,8 @@ elif st.session_state.page == 'analysis':
             
             with col2:
                 st.markdown(f"""
-                <div style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; border-left: 4px solid #8b5cf6;">
-                    <div style="color: #8b5cf6; font-size: 1.2rem; font-weight: 600; margin-bottom: 25px; text-align: center;">
+                <div style="background: white; padding: 25px; margin-bottom: 25px; border-left: 4px solid #404040;">
+                    <div style="color: #404040; font-size: 1.2rem; font-weight: 600; margin-bottom: 25px; text-align: center;">
                         {get_app_name(package_b).upper()}
                     </div>
                     <div class="metrics-grid" style="grid-template-columns: 1fr 1fr;">
@@ -1460,7 +1450,7 @@ elif st.session_state.page == 'analysis':
         if enable_insights and (insights_a or insights_b):
             st.markdown("""
             <div class="ai-insights">
-                <h2 style="color: #4f46e5; margin-bottom: 30px;">
+                <h2 style="color: #000000; margin-bottom: 30px;">
                     ADVANCED AI STRATEGIC INTELLIGENCE
                 </h2>
             </div>
@@ -1477,8 +1467,8 @@ elif st.session_state.page == 'analysis':
                             icon = "✓" if insight['type'] == 'positive' else "⚠"
                             st.markdown(f"""
                             <div class="{css_class}">
-                                <h5 style="color: #4f46e5; margin-bottom: 12px; font-size: 1.1rem;">{icon} {insight['title']}</h5>
-                                <p style="color: #475569; margin: 0; line-height: 1.6;">{insight['description']}</p>
+                                <h5 style="color: #000000; margin-bottom: 12px; font-size: 1.1rem;">{icon} {insight['title']}</h5>
+                                <p style="color: #292929; margin: 0; line-height: 1.6;">{insight['description']}</p>
                             </div>
                             """, unsafe_allow_html=True)
                 
@@ -1490,8 +1480,8 @@ elif st.session_state.page == 'analysis':
                             icon = "✓" if insight['type'] == 'positive' else "⚠"
                             st.markdown(f"""
                             <div class="{css_class}">
-                                <h5 style="color: #8b5cf6; margin-bottom: 12px; font-size: 1.1rem;">{icon} {insight['title']}</h5>
-                                <p style="color: #475569; margin: 0; line-height: 1.6;">{insight['description']}</p>
+                                <h5 style="color: #404040; margin-bottom: 12px; font-size: 1.1rem;">{icon} {insight['title']}</h5>
+                                <p style="color: #292929; margin: 0; line-height: 1.6;">{insight['description']}</p>
                             </div>
                             """, unsafe_allow_html=True)
             else:
@@ -1500,8 +1490,8 @@ elif st.session_state.page == 'analysis':
                     icon = "✓" if insight['type'] == 'positive' else "⚠"
                     st.markdown(f"""
                     <div class="{css_class}">
-                        <h5 style="color: #4f46e5; margin-bottom: 12px; font-size: 1.1rem;">{icon} {insight['title']}</h5>
-                        <p style="color: #475569; margin: 0; line-height: 1.6;">{insight['description']}</p>
+                        <h5 style="color: #000000; margin-bottom: 12px; font-size: 1.1rem;">{icon} {insight['title']}</h5>
+                        <p style="color: #292929; margin: 0; line-height: 1.6;">{insight['description']}</p>
                     </div>
                     """, unsafe_allow_html=True)
         
@@ -1563,7 +1553,7 @@ elif st.session_state.page == 'analysis':
             st.download_button(
                 "DOWNLOAD PROFESSIONAL REPORT",
                 data=report_content,
-                file_name=f"TerminalAnalyzer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
+                file_name=f"FeedbacksForge_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
                 mime="text/html",
                 type="primary"
             )
@@ -1588,7 +1578,7 @@ elif st.session_state.page == 'analysis':
             st.download_button(
                 "DOWNLOAD COMPLETE DATASET",
                 data=csv_data,
-                file_name=f"TerminalAnalyzer_Dataset_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                file_name=f"FeedbacksForge_Dataset_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv"
             )
         
@@ -1639,7 +1629,7 @@ elif st.session_state.page == 'analysis':
             st.download_button(
                 "DOWNLOAD EXECUTIVE SUMMARY",
                 data=summary_csv,
-                file_name=f"TerminalAnalyzer_Summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                file_name=f"FeedbacksForge_Summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv"
             )
         
@@ -1647,15 +1637,15 @@ elif st.session_state.page == 'analysis':
 
 # Professional Footer
 st.markdown("""
-<div style="text-align: center; color: #64748b; padding: 40px; margin-top: 50px; 
-           border-top: 1px solid #e2e8f0; background: white;">
-    <div style="color: #4f46e5; font-size: 1.1rem; font-weight: 600; margin-bottom: 15px;">
-        TERMINALANALYZER PRO v3.0
+<div style="text-align: center; color: #757575; padding: 40px; margin-top: 50px; 
+           border-top: 1px solid #e6e6e6; background: white;">
+    <div style="color: #000000; font-size: 1.1rem; font-weight: 600; margin-bottom: 15px;">
+        FEEDBACKS FORGE v3.0
     </div>
     <div style="margin-bottom: 15px;">
-        Professional Review Intelligence Platform | Created by <strong style="color: #4f46e5;">Ayush Pandey</strong>
+        Professional Review Intelligence Platform | Created by <strong style="color: #000000;">Ayush Pandey</strong>
     </div>
-    <div style="font-size: 0.9rem; color: #94a3b8; line-height: 1.6;">
+    <div style="font-size: 0.9rem; color: #757575; line-height: 1.6;">
         Advanced AI Analytics • Modern Interface • Professional Intelligence<br>
         Transform Review Data Into Strategic Business Advantage
     </div>
