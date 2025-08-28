@@ -14,7 +14,7 @@ import base64
 
 # Page Configuration
 st.set_page_config(
-    page_title="ReviewAnalyzer Pro", 
+    page_title="Feedback Forge", 
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -1012,8 +1012,8 @@ if st.session_state.page == 'home':
     # HOME PAGE
     st.markdown("""
     <div class="terminal-header">
-        <div class="terminal-title">ReviewAnalyzer Pro</div>
-        <div class="terminal-subtitle">Advanced Terminal-Style Review Intelligence Platform</div>
+        <div class="terminal-title">Feedback Forge</div>
+        <div class="terminal-subtitle">Transform Play Store Reviews Into Strategic Intelligence</div>
         <div class="creator-tag">dev: ayush_pandey</div>
     </div>
     """, unsafe_allow_html=True)
@@ -1021,7 +1021,7 @@ if st.session_state.page == 'home':
     # Hero Section
     st.markdown("""
     <div class="hero-section">
-        <div class="hero-title">> TERMINAL_ANALYTICS</div>
+        <div class="hero-title">> FEEDBACK_ANALYTICS</div>
         <div class="hero-subtitle">
             Professional review analysis platform with monospace aesthetics and advanced competitive intelligence.
             Built for developers, analysts, and product managers who appreciate clean, terminal-inspired interfaces.
