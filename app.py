@@ -468,17 +468,6 @@ st.markdown("""
         line-height: 1.5;
     }
     
-    /* Developer Credit */
-    .developer-credit {
-        background: linear-gradient(135deg, #1a8917 0%, #0ea5e9 100%);
-        color: white;
-        padding: 16px;
-        border-radius: 8px;
-        margin-top: 32px;
-        text-align: center;
-        font-weight: 500;
-    }
-    
     /* Responsive Design */
     @media (max-width: 768px) {
         .hero-title {
@@ -531,53 +520,6 @@ st.markdown("""
         color: #242424 !important;
         margin-bottom: 8px !important;
     }
-    
-    /* Analysis Results Improvements */
-    .result-highlight {
-        background: linear-gradient(135deg, #1a8917 0%, #0ea5e9 100%);
-        color: white;
-        padding: 24px;
-        border-radius: 12px;
-        margin: 24px 0;
-        text-align: center;
-    }
-    
-    .result-highlight h3 {
-        margin: 0;
-        font-size: 22px;
-        font-weight: 600;
-    }
-    
-    .result-highlight p {
-        margin: 8px 0 0;
-        font-size: 18px;
-    }
-    
-    /* Keyword Highlights */
-    .keyword-pill {
-        display: inline-block;
-        background: #e6f7ff;
-        color: #0ea5e9;
-        padding: 4px 12px;
-        border-radius: 16px;
-        margin: 4px;
-        font-size: 14px;
-        font-weight: 500;
-    }
-    
-    /* Loading Animation */
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-    }
-    
-    .loading-pulse {
-        animation: pulse 1.5s infinite;
-        text-align: center;
-        color: #1a8917;
-        font-weight: 600;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -586,8 +528,16 @@ if 'page' not in st.session_state:
     st.session_state.page = 'home'
 if 'comparison_mode' not in st.session_state:
     st.session_state.comparison_mode = False
-if 'analysis_data' not in st.session_state:
-    st.session_state.analysis_data = None
+if 'analysis_started' not in st.session_state:
+    st.session_state.analysis_started = False
+if 'df_a' not in st.session_state:
+    st.session_state.df_a = None
+if 'df_b' not in st.session_state:
+    st.session_state.df_b = None
+if 'package_a' not in st.session_state:
+    st.session_state.package_a = None
+if 'package_b' not in st.session_state:
+    st.session_state.package_b = None
 
 # Navigation
 def show_navigation():
@@ -596,72 +546,67 @@ def show_navigation():
         <div class="nav-container">
             <div class="brand">Feedback Forge</div>
             <div class="nav-links">
-                <span class="nav-link {'active' if st.session_state.page == 'home' else ''}" 
-                      onclick="window.navigateTo('home')">Home</span>
-                <span class="nav-link {'active' if st.session_state.page == 'about' else ''}" 
-                      onclick="window.navigateTo('about')">About</span>
-                <span class="nav-link {'active' if st.session_state.page == 'analysis' else ''}" 
-                      onclick="window.navigateTo('analysis')">Analysis</span>
+                <span class="nav-link {'active' if st.session_state.page == 'home' else ''}" onclick="window.navigateTo('home')">Home</span>
+                <span class="nav-link {'active' if st.session_state.page == 'about' else ''}" onclick="window.navigateTo('about')">About</span>
+                <span class="nav-link {'active' if st.session_state.page == 'analysis' else ''}" onclick="window.navigateTo('analysis')">Analysis</span>
             </div>
         </div>
     </div>
     
     <script>
     function navigateTo(page) {{
-        // This will be handled by the Streamlit buttons
-        if (page === 'home') {{
-            document.querySelector('button[key="nav_home"]').click();
-        }} else if (page === 'about') {{
-            document.querySelector('button[key="nav_about"]').click();
-        }} else if (page === 'analysis') {{
-            document.querySelector('button[key="nav_analysis"]').click();
-        }}
+        const data = {{page: page}};
+        window.parent.postMessage({{type: 'streamlit:setComponentValue', value: JSON.stringify(data)}}, '*');
     }}
-    window.navigateTo = navigateTo;
+    
+    // Listen for messages from Streamlit
+    window.addEventListener('message', (event) => {{
+        if (event.data.type === 'streamlit:setComponentValue') {{
+            const data = JSON.parse(event.data.value);
+            if (data.page) {{
+                navigateTo(data.page);
+            }}
+        }}
+    }});
     </script>
     """, unsafe_allow_html=True)
 
-# Hidden navigation buttons
-col1, col2, col3 = st.columns(3)
-with col1:
-    if st.button("Home", key="nav_home", use_container_width=True):
-        st.session_state.page = 'home'
-        st.rerun()
-with col2:
-    if st.button("About", key="nav_about", use_container_width=True):
-        st.session_state.page = 'about'
-        st.rerun()
-with col3:
-    if st.button("Analysis", key="nav_analysis", use_container_width=True):
-        st.session_state.page = 'analysis'
-        st.rerun()
-
 # Helper Functions
 def extract_package_name(url):
+    if not url or pd.isna(url):
+        return None
     if "id=" in url:
         return url.split("id=")[1].split("&")[0].strip()
+    # Handle direct package name input
+    if re.match(r'^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$', url.strip()):
+        return url.strip()
     return None
 
 def analyze_sentiment_advanced(text):
     if pd.isna(text) or text.strip() == "":
         return "Neutral", 0.0, 0.0, "Unknown"
     
-    blob = TextBlob(str(text))
-    polarity = blob.sentiment.polarity
-    subjectivity = blob.sentiment.subjectivity
-    
-    if polarity > 0.3:
-        return "Positive", polarity, subjectivity, "Highly Positive"
-    elif polarity > 0.1:
-        return "Positive", polarity, subjectivity, "Moderately Positive"
-    elif polarity < -0.3:
-        return "Negative", polarity, subjectivity, "Highly Negative"
-    elif polarity < -0.1:
-        return "Negative", polarity, subjectivity, "Moderately Negative"
-    else:
-        return "Neutral", polarity, subjectivity, "Neutral"
+    try:
+        blob = TextBlob(str(text))
+        polarity = blob.sentiment.polarity
+        subjectivity = blob.sentiment.subjectivity
+        
+        if polarity > 0.3:
+            return "Positive", polarity, subjectivity, "Highly Positive"
+        elif polarity > 0.1:
+            return "Positive", polarity, subjectivity, "Moderately Positive"
+        elif polarity < -0.3:
+            return "Negative", polarity, subjectivity, "Highly Negative"
+        elif polarity < -0.1:
+            return "Negative", polarity, subjectivity, "Moderately Negative"
+        else:
+            return "Neutral", polarity, subjectivity, "Neutral"
+    except:
+        return "Neutral", 0.0, 0.0, "Unknown"
 
 def get_app_name(package_name):
+    if not package_name:
+        return "Unknown App"
     parts = package_name.split('.')
     return parts[-1].replace('_', ' ').title() if parts else package_name
 
@@ -677,46 +622,25 @@ def generate_insights(df):
         
         positive_rate = sentiment_dist.get('Positive', 0)
         negative_rate = sentiment_dist.get('Negative', 0)
-        neutral_rate = sentiment_dist.get('Neutral', 0)
         
-        # Generate more comprehensive insights
         if positive_rate > 75 and avg_rating > 4.0:
             insights.append({
                 "type": "positive",
-                "title": "Excellent User Satisfaction",
-                "description": f"Your app shows outstanding performance with {positive_rate:.1f}% positive reviews and a {avg_rating:.1f} star average rating. Users are clearly delighted with your app."
-            })
-        elif positive_rate > 60:
-            insights.append({
-                "type": "positive",
                 "title": "Strong User Satisfaction",
-                "description": f"Your app is performing well with {positive_rate:.1f}% positive reviews. Users appreciate your app's features and functionality."
+                "description": f"Your app shows excellent performance with {positive_rate:.1f}% positive reviews and a {avg_rating:.1f} star average rating. Users are clearly happy with the experience you're providing."
             })
-        
-        if negative_rate > 35:
-            insights.append({
-                "type": "warning",
-                "title": "Significant Improvement Needed",
-                "description": f"With {negative_rate:.1f}% negative feedback, there are clear opportunities to enhance user experience. Focus on addressing the most common complaints."
-            })
-        elif negative_rate > 20:
+        elif negative_rate > 35:
             insights.append({
                 "type": "warning",
                 "title": "Areas for Improvement",
-                "description": f"With {negative_rate:.1f}% negative feedback, there are some areas that need attention to improve user satisfaction."
+                "description": f"With {negative_rate:.1f}% negative feedback, there are opportunities to enhance user experience. Consider reviewing common complaints to identify improvement areas."
             })
         
-        if total_reviews > 1000:
-            insights.append({
-                "type": "positive",
-                "title": "Exceptional User Engagement",
-                "description": f"Your app has generated {total_reviews:,} reviews, indicating exceptional user engagement and strong market presence."
-            })
-        elif total_reviews > 500:
+        if total_reviews > 500:
             insights.append({
                 "type": "positive",
                 "title": "Strong User Engagement",
-                "description": f"Your app has generated {total_reviews:,} reviews, indicating solid user engagement and market presence."
+                "description": f"Your app has generated {total_reviews:,} reviews, indicating strong user engagement and market presence. This level of feedback provides valuable insights for growth."
             })
         
         rating_std = df['score'].std()
@@ -724,51 +648,14 @@ def generate_insights(df):
             insights.append({
                 "type": "positive",
                 "title": "Consistent User Experience",
-                "description": f"Your ratings show low variance ({rating_std:.2f}), suggesting a consistent user experience across different user types."
+                "description": f"Your ratings show low variance ({rating_std:.2f}), suggesting a consistent user experience across different user types and usage patterns."
             })
-        else:
-            insights.append({
-                "type": "warning",
-                "title": "Inconsistent User Experience",
-                "description": f"Your ratings show high variance ({rating_std:.2f}), suggesting inconsistent experiences that may need addressing."
-            })
-            
-        # Check for recent trends
-        if 'at' in df.columns:
-            df['date'] = pd.to_datetime(df['at'])
-            recent_reviews = df[df['date'] > (datetime.now() - timedelta(days=30))]
-            if len(recent_reviews) > 0:
-                recent_positive = (recent_reviews['sentiment'] == 'Positive').mean() * 100
-                if recent_positive > (positive_rate + 10):
-                    insights.append({
-                        "type": "positive",
-                        "title": "Improving Trend",
-                        "description": f"Recent reviews show improvement with {recent_positive:.1f}% positive feedback, compared to your overall {positive_rate:.1f}%."
-                    })
-                elif recent_positive < (positive_rate - 10):
-                    insights.append({
-                        "type": "warning",
-                        "title": "Declining Trend",
-                        "description": f"Recent reviews show a decline with only {recent_positive:.1f}% positive feedback, compared to your overall {positive_rate:.1f}%."
-                    })
         
-        return insights[:5]
+        return insights[:4]
         
     except Exception as e:
-        return [{
-            "type": "neutral",
-            "title": "Analysis Incomplete",
-            "description": f"Could not generate all insights due to an error: {str(e)}"
-        }]
-
-def extract_keywords(text_series, n=10):
-    all_text = ' '.join([str(text) for text in text_series if pd.notna(text)])
-    words = re.findall(r'\b[a-zA-Z]{4,}\b', all_text.lower())
-    word_counts = Counter(words)
-    # Remove common stop words
-    stop_words = {'this', 'that', 'with', 'have', 'from', 'they', 'what', 'when', 'were', 'your', 'just', 'like', 'than', 'because', 'very', 'much', 'more', 'some', 'will', 'about', 'their', 'should', 'would', 'could'}
-    filtered_words = {word: count for word, count in word_counts.items() if word not in stop_words}
-    return dict(Counter(filtered_words).most_common(n))
+        st.error(f"Error generating insights: {str(e)}")
+        return []
 
 def create_charts(df_a, df_b=None):
     charts = {}
@@ -827,25 +714,6 @@ def create_charts(df_a, df_b=None):
         )
         
         charts['comparison'] = fig
-        
-        # Rating comparison
-        fig_rating = go.Figure()
-        fig_rating.add_trace(go.Box(
-            y=df_a['score'],
-            name='First App',
-            marker_color='#1a8917'
-        ))
-        fig_rating.add_trace(go.Box(
-            y=df_b['score'],
-            name='Second App',
-            marker_color='#0ea5e9'
-        ))
-        fig_rating.update_layout(
-            title='Rating Distribution Comparison',
-            yaxis_title='Rating (1-5 stars)',
-            template=template
-        )
-        charts['rating_comparison'] = fig_rating
     
     else:
         # Single app chart
@@ -867,44 +735,14 @@ def create_charts(df_a, df_b=None):
         )
         
         charts['sentiment'] = fig
-        
-        # Rating distribution
-        rating_counts = df_a['score'].value_counts().sort_index()
-        fig_rating = go.Figure(data=[go.Bar(
-            x=rating_counts.index.astype(str),
-            y=rating_counts.values,
-            marker_color='#1a8917'
-        )])
-        fig_rating.update_layout(
-            title="Rating Distribution",
-            xaxis_title="Rating",
-            yaxis_title="Number of Reviews",
-            template=template
-        )
-        charts['rating_dist'] = fig_rating
-        
-        # Time series of reviews
-        if 'at' in df_a.columns:
-            df_a['date'] = pd.to_datetime(df_a['at'])
-            daily_reviews = df_a.groupby(df_a['date'].dt.date).size()
-            fig_time = go.Figure(data=[go.Scatter(
-                x=daily_reviews.index,
-                y=daily_reviews.values,
-                mode='lines+markers',
-                line=dict(color='#1a8917', width=2),
-                marker=dict(size=4)
-            )])
-            fig_time.update_layout(
-                title="Reviews Over Time",
-                xaxis_title="Date",
-                yaxis_title="Number of Reviews",
-                template=template
-            )
-            charts['reviews_over_time'] = fig_time
     
     return charts
 
 def display_review_cards(df, max_reviews=10):
+    if df.empty:
+        st.info("No reviews to display.")
+        return
+        
     if 'at' in df.columns:
         df_sorted = df.sort_values('at', ascending=False).head(max_reviews)
     else:
@@ -943,8 +781,31 @@ def display_review_cards(df, max_reviews=10):
         </div>
         """, unsafe_allow_html=True)
 
+# Navigation handler
+def handle_navigation():
+    # Create a component to handle navigation
+    nav_component = st.empty()
+    with nav_component.container():
+        show_navigation()
+    
+    # Check for navigation messages
+    try:
+        # This is a simplified approach to handle navigation
+        # In a real implementation, you might use query parameters or session state
+        if st.button("Home", key="nav_home"):
+            st.session_state.page = 'home'
+            st.rerun()
+        if st.button("About", key="nav_about"):
+            st.session_state.page = 'about'
+            st.rerun()
+        if st.button("Analysis", key="nav_analysis"):
+            st.session_state.page = 'analysis'
+            st.rerun()
+    except:
+        pass
+
 # Show Navigation
-show_navigation()
+handle_navigation()
 
 # HOME PAGE
 if st.session_state.page == 'home':
@@ -1108,11 +969,6 @@ elif st.session_state.page == 'about':
                 to make confident decisions.
             </p>
         </div>
-        
-        <div class="developer-credit">
-            <h3>Developed by Ayush Pandey</h3>
-            <p>Feedback Forge was created with passion for helping developers understand their users better.</p>
-        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1139,12 +995,12 @@ elif st.session_state.page == 'analysis':
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("Single App Analysis", type="primary", key="single_btn", use_container_width=True):
+            if st.button("Single App Analysis", type="primary", key="single_btn"):
                 st.session_state.comparison_mode = False
                 st.rerun()
         
         with col2:
-            if st.button("Compare Two Apps", type="secondary", key="compare_btn", use_container_width=True):
+            if st.button("Compare Two Apps", type="secondary", key="compare_btn"):
                 st.session_state.comparison_mode = True
                 st.rerun()
         
@@ -1157,14 +1013,14 @@ elif st.session_state.page == 'analysis':
             
             with col1:
                 st.markdown("**First App**")
-                url_a = st.text_input("Google Play Store URL", placeholder="https://play.google.com/store/apps/details?id=com.example.app", key="url_a")
+                url_a = st.text_input("Google Play Store URL", placeholder="https://play.google.com/store/apps/details?id=...", key="url_a")
             
             with col2:
                 st.markdown("**Second App**")
-                url_b = st.text_input("Google Play Store URL", placeholder="https://play.google.com/store/apps/details?id=com.example.app", key="url_b")
+                url_b = st.text_input("Google Play Store URL", placeholder="https://play.google.com/store/apps/details?id=...", key="url_b")
         else:
             st.markdown("### App Analysis")
-            url_a = st.text_input("Google Play Store URL", placeholder="https://play.google.com/store/apps/details?id=com.example.app", key="url_a_single")
+            url_a = st.text_input("Google Play Store URL", placeholder="https://play.google.com/store/apps/details?id=...", key="url_a_single")
             url_b = None
         
         # Analysis Parameters
@@ -1172,16 +1028,16 @@ elif st.session_state.page == 'analysis':
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            count = st.slider("Number of Reviews", 50, 1000, 300, 50, key="review_count")
+            count = st.slider("Number of Reviews", 50, 1000, 300, 50)
         with col2:
-            language = st.selectbox("Language", ["en", "hi", "es", "fr", "de", "ja"], key="language_select")
+            language = st.selectbox("Language", ["en", "hi", "es", "fr", "de", "ja"])
         with col3:
-            sort_by = st.selectbox("Sort By", ["NEWEST", "MOST_RELEVANT", "RATING"], key="sort_select")
+            sort_by = st.selectbox("Sort By", ["NEWEST", "MOST_RELEVANT", "RATING"])
         
         st.markdown('</div>', unsafe_allow_html=True)
         
         # Start Analysis Button
-        if st.button("Start Analysis", type="primary", key="start_analysis", use_container_width=True):
+        if st.button("Start Analysis", type="primary", key="start_analysis"):
             if not url_a.strip():
                 st.error("Please enter at least one app URL to begin analysis.")
                 st.stop()
@@ -1191,7 +1047,7 @@ elif st.session_state.page == 'analysis':
                 st.stop()
             
             package_a = extract_package_name(url_a)
-            package_b = extract_package_name(url_b) if st.session_state.comparison_mode and url_b else None
+            package_b = extract_package_name(url_b) if url_b and url_b.strip() else None
             
             if not package_a:
                 st.error("Please enter a valid Google Play Store URL.")
@@ -1201,6 +1057,11 @@ elif st.session_state.page == 'analysis':
                 st.error("Please enter valid Google Play Store URLs for both apps.")
                 st.stop()
             
+            # Store in session state
+            st.session_state.package_a = package_a
+            st.session_state.package_b = package_b
+            st.session_state.analysis_started = True
+            
             # Progress indicator
             progress_bar = st.progress(0)
             status_text = st.empty()
@@ -1209,8 +1070,8 @@ elif st.session_state.page == 'analysis':
                 sort_mapping = {"NEWEST": Sort.NEWEST, "MOST_RELEVANT": Sort.MOST_RELEVANT, "RATING": Sort.RATING}
                 
                 # Process first app
-                status_text.markdown('<p class="loading-pulse">Analyzing app reviews...</p>', unsafe_allow_html=True)
-                result_a, continuation_token = reviews(
+                status_text.text(f"Analyzing {get_app_name(package_a)}...")
+                result_a, _ = reviews(
                     package_a, 
                     lang=language, 
                     country="us", 
@@ -1223,14 +1084,14 @@ elif st.session_state.page == 'analysis':
                     df_a["package"] = package_a
                     df_a["app_name"] = get_app_name(package_a)
                     
-                    # Analyze sentiment with progress
-                    status_text.markdown('<p class="loading-pulse">Analyzing sentiment...</p>', unsafe_allow_html=True)
                     sentiment_results = df_a["content"].apply(analyze_sentiment_advanced)
                     df_a["sentiment"] = [r[0] for r in sentiment_results]
                     df_a["polarity_score"] = [r[1] for r in sentiment_results]
                     df_a["subjectivity_score"] = [r[2] for r in sentiment_results]
                     df_a["business_impact"] = [r[3] for r in sentiment_results]
                     df_a["at"] = pd.to_datetime(df_a["at"])
+                    
+                    st.session_state.df_a = df_a
                 else:
                     st.error("Could not retrieve reviews for the first app. Please check the URL.")
                     st.stop()
@@ -1240,7 +1101,7 @@ elif st.session_state.page == 'analysis':
                 # Process second app if needed
                 df_b = None
                 if st.session_state.comparison_mode and package_b:
-                    status_text.markdown('<p class="loading-pulse">Analyzing second app...</p>', unsafe_allow_html=True)
+                    status_text.text(f"Analyzing {get_app_name(package_b)}...")
                     result_b, _ = reviews(
                         package_b, 
                         lang=language, 
@@ -1260,22 +1121,17 @@ elif st.session_state.page == 'analysis':
                         df_b["subjectivity_score"] = [r[2] for r in sentiment_results]
                         df_b["business_impact"] = [r[3] for r in sentiment_results]
                         df_b["at"] = pd.to_datetime(df_b["at"])
+                        
+                        st.session_state.df_b = df_b
                     else:
                         st.error("Could not retrieve reviews for the second app. Please check the URL.")
                         st.stop()
                 
                 progress_bar.progress(1.0)
-                status_text.markdown('<p class="loading-pulse">Analysis complete! Generating report...</p>', unsafe_allow_html=True)
-                
-                # Store data in session state
-                st.session_state.analysis_data = {
-                    'df_a': df_a,
-                    'df_b': df_b,
-                    'package_a': package_a,
-                    'package_b': package_b
-                }
+                status_text.text("Analysis complete!")
                 
                 # Clear progress indicators
+                time.sleep(0.5)
                 progress_bar.empty()
                 status_text.empty()
                 
@@ -1286,13 +1142,10 @@ elif st.session_state.page == 'analysis':
                 progress_bar.empty()
                 status_text.empty()
     
-    # Display results if analysis is complete
-    if st.session_state.analysis_data:
-        data = st.session_state.analysis_data
-        df_a = data['df_a']
-        df_b = data['df_b']
-        package_a = data['package_a']
-        package_b = data['package_b']
+    # Display Results if analysis has been completed
+    if st.session_state.analysis_started and st.session_state.df_a is not None:
+        df_a = st.session_state.df_a
+        df_b = st.session_state.df_b if st.session_state.comparison_mode else None
         
         # Display Results
         st.success(f"Successfully analyzed {len(df_a):,} reviews" + (f" and {len(df_b):,} reviews" if df_b is not None else ""))
@@ -1304,7 +1157,7 @@ elif st.session_state.page == 'analysis':
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown(f"### {get_app_name(package_a)}")
+                st.markdown(f"### {get_app_name(st.session_state.package_a)}")
                 st.markdown(f"""
                 <div class="metrics-row">
                     <div class="metric-card">
@@ -1323,7 +1176,7 @@ elif st.session_state.page == 'analysis':
                 """, unsafe_allow_html=True)
             
             with col2:
-                st.markdown(f"### {get_app_name(package_b)}")
+                st.markdown(f"### {get_app_name(st.session_state.package_b)}")
                 st.markdown(f"""
                 <div class="metrics-row">
                     <div class="metric-card">
@@ -1363,49 +1216,18 @@ elif st.session_state.page == 'analysis':
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            
-            # Highlight key metrics
-            positive_rate = (df_a['sentiment'] == 'Positive').mean() * 100
-            if positive_rate > 70:
-                st.markdown(f"""
-                <div class="result-highlight">
-                    <h3>Excellent User Satisfaction! 🎉</h3>
-                    <p>Your app has {positive_rate:.1f}% positive reviews, indicating strong user satisfaction.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            elif positive_rate > 50:
-                st.markdown(f"""
-                <div class="result-highlight">
-                    <h3>Good User Satisfaction 👍</h3>
-                    <p>Your app has {positive_rate:.1f}% positive reviews, with room for improvement.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="result-highlight">
-                    <h3>Needs Improvement ⚠️</h3>
-                    <p>Your app has only {positive_rate:.1f}% positive reviews. Consider addressing user feedback.</p>
-                </div>
-                """, unsafe_allow_html=True)
         
         # Charts
         charts = create_charts(df_a, df_b)
         for chart_name, chart in charts.items():
             st.plotly_chart(chart, use_container_width=True)
         
-        # Keyword analysis
-        if not st.session_state.comparison_mode:
-            st.markdown("## Top Keywords in Reviews")
-            keywords = extract_keywords(df_a['content'])
-            keyword_html = " ".join([f'<span class="keyword-pill">{word} ({count})</span>' for word, count in keywords.items()])
-            st.markdown(f'<div style="margin: 20px 0;">{keyword_html}</div>', unsafe_allow_html=True)
-        
         # Insights
         insights_a = generate_insights(df_a)
         if insights_a:
             st.markdown(f"""
             <div class="insights-container">
-                <h2 class="results-header">Key Insights for {get_app_name(package_a)}</h2>
+                <h2 class="results-header">Key Insights for {get_app_name(st.session_state.package_a)}</h2>
             """, unsafe_allow_html=True)
             
             for insight in insights_a:
@@ -1424,7 +1246,7 @@ elif st.session_state.page == 'analysis':
             if insights_b:
                 st.markdown(f"""
                 <div class="insights-container">
-                    <h2 class="results-header">Key Insights for {get_app_name(package_b)}</h2>
+                    <h2 class="results-header">Key Insights for {get_app_name(st.session_state.package_b)}</h2>
                 """, unsafe_allow_html=True)
                 
                 for insight in insights_b:
@@ -1441,7 +1263,7 @@ elif st.session_state.page == 'analysis':
         # Individual Reviews
         st.markdown(f"""
         <div class="results-container">
-            <h2 class="results-header">Recent Reviews for {get_app_name(package_a)}</h2>
+            <h2 class="results-header">Recent Reviews for {get_app_name(st.session_state.package_a)}</h2>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1450,7 +1272,7 @@ elif st.session_state.page == 'analysis':
         if df_b is not None:
             st.markdown(f"""
             <div class="results-container">
-                <h2 class="results-header">Recent Reviews for {get_app_name(package_b)}</h2>
+                <h2 class="results-header">Recent Reviews for {get_app_name(st.session_state.package_b)}</h2>
             </div>
             """, unsafe_allow_html=True)
             
@@ -1471,27 +1293,26 @@ elif st.session_state.page == 'analysis':
                 "Download Complete Data (CSV)",
                 data=csv_data,
                 file_name=f"feedback_forge_analysis_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv",
-                use_container_width=True
+                mime="text/csv"
             )
         
         with col2:
             # Create summary data
             if df_b is not None:
                 summary_data = [{
-                    "App": get_app_name(package_a),
+                    "App": get_app_name(st.session_state.package_a),
                     "Reviews": len(df_a),
                     "Avg_Rating": round(df_a["score"].mean(), 2),
                     "Positive_Percent": f"{(df_a['sentiment'] == 'Positive').mean() * 100:.1f}%"
                 }, {
-                    "App": get_app_name(package_b),
+                    "App": get_app_name(st.session_state.package_b),
                     "Reviews": len(df_b),
                     "Avg_Rating": round(df_b["score"].mean(), 2),
                     "Positive_Percent": f"{(df_b['sentiment'] == 'Positive').mean() * 100:.1f}%"
                 }]
             else:
                 summary_data = [{
-                    "App": get_app_name(package_a),
+                    "App": get_app_name(st.session_state.package_a),
                     "Reviews": len(df_a),
                     "Avg_Rating": round(df_a["score"].mean(), 2),
                     "Positive_Percent": f"{(df_a['sentiment'] == 'Positive').mean() * 100:.1f}%"
@@ -1504,11 +1325,10 @@ elif st.session_state.page == 'analysis':
                 "Download Summary (CSV)",
                 data=summary_csv,
                 file_name=f"feedback_forge_summary_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv",
-                use_container_width=True
+                mime="text/csv"
             )
 
-# Footer with developer credit
+# Footer
 st.markdown("""
 <div class="footer">
     <div class="footer-content">
@@ -1517,7 +1337,7 @@ st.markdown("""
             Transform app reviews into actionable insights with advanced sentiment analysis and competitive intelligence.
         </p>
         <p class="footer-text">
-            Developed by Ayush Pandey • Built with care for developers and product managers who want to understand their users better.
+            Built by Ayush Pandey with care for developers and product managers who want to understand their users better.
         </p>
     </div>
 </div>
