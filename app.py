@@ -1,173 +1,485 @@
 import streamlit as st
 import pandas as pd
-from google_play_scraper import Sort, reviews
+from google_play_scraper import Sort, reviews, app
 from textblob import TextBlob
+import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, timedelta
+import re
+from collections import Counter
+import numpy as np
+import json
+from urllib.parse import urlparse, parse_qs
 
-# Page config
-st.set_page_config(page_title="Feedback Forge", page_icon="📊", layout="wide")
+# Page Configuration
+st.set_page_config(
+    page_title="Feedback Forge",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-# CSS for Medium-like theme and nav bar
+# Custom CSS for Medium-inspired design
 st.markdown("""
 <style>
-    .stApp {background: #fff; color: #242424; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;}
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* Global Styles */
+    .stApp {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stDeployButton {display:none;}
+    
+    /* Header Styles */
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2E7D32;
+        text-align: center;
+        margin: 2rem 0;
+    }
+    
+    /* Navigation Styles */
     .nav-container {
-        display: flex; justify-content: flex-end; padding: 16px 24px; border-bottom: 1px solid #e6e6e6; background: #fff; position: sticky; top: 0; z-index: 999;
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin: 2rem 0;
+        padding: 1rem 0;
+        border-bottom: 1px solid #e0e0e0;
     }
-    .nav-brand {
-        font-weight: 700; font-size: 28px; color: #1a8917; margin-right: auto; cursor: pointer; font-family: 'Source Serif Pro', serif;
+    
+    .nav-item {
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        border-radius: 20px;
+        transition: all 0.3s ease;
+        font-weight: 500;
     }
-    .nav-button {
-        font-size: 16px; font-weight: 500; color: #242424; background: none; border: none; cursor: pointer; padding: 8px 16px; border-radius: 6px; margin-left: 16px; transition: color 0.2s ease, background-color 0.2s ease;
+    
+    .nav-item:hover {
+        background-color: #f5f5f5;
     }
-    .nav-button:hover {
-        color: #1a8917; background-color: #f8f9fa;
+    
+    .nav-item.active {
+        background-color: #2E7D32;
+        color: white;
     }
-    .nav-button-active {
-        color: #1a8917; font-weight: 600; background-color: #f0fff4;
+    
+    /* Card Styles */
+    .feature-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin: 1rem 0;
+        border-left: 4px solid #2E7D32;
+    }
+    
+    .feature-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+    
+    .feature-description {
+        color: #666;
+        line-height: 1.6;
+    }
+    
+    /* Hero Section */
+    .hero-section {
+        text-align: center;
+        padding: 3rem 0;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 12px;
+        margin: 2rem 0;
+    }
+    
+    .hero-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 1rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 1.2rem;
+        color: #666;
+        margin-bottom: 2rem;
+    }
+    
+    /* Input Section */
+    .input-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin: 2rem 0;
+    }
+    
+    /* Analysis Results */
+    .metric-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2E7D32;
+    }
+    
+    .metric-label {
+        color: #666;
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+    }
+    
+    /* Button Styles */
+    .stButton button {
+        background-color: #2E7D32;
+        color: white;
+        border: none;
+        padding: 0.5rem 2rem;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton button:hover {
+        background-color: #1B5E20;
+        transform: translateY(-2px);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Init session state
+# Initialize session state
 if 'page' not in st.session_state:
     st.session_state.page = 'home'
-if 'comparison_mode' not in st.session_state:
-    st.session_state.comparison_mode = False
+if 'analysis_data' not in st.session_state:
+    st.session_state.analysis_data = None
 
-def navigate_to(page):
-    st.session_state.page = page
-    # No st.experimental_rerun(), Streamlit reruns automatically on session_state change
+# Helper Functions
+def extract_app_id_from_url(url):
+    """Extract app ID from Google Play Store URL"""
+    try:
+        if 'play.google.com' in url:
+            if 'id=' in url:
+                return url.split('id=')[1].split('&')[0]
+            else:
+                # Handle different URL formats
+                parts = url.split('/')
+                if 'details' in parts:
+                    idx = parts.index('details')
+                    if idx + 1 < len(parts):
+                        return parts[idx + 1].split('?')[0]
+        return None
+    except:
+        return None
 
-# Navigation bar
-def show_navigation():
-    cols = st.columns([2, 1, 1, 1])
-    with cols[0]:
-        if st.button("Feedback Forge", key="nav_brand"):
-            navigate_to('home')
-    with cols[1]:
-        classes = "nav-button nav-button-active" if st.session_state.page == "home" else "nav-button"
-        if st.button("Home", key="nav_home", help="Go to Home page"):
-            navigate_to('home')
-    with cols[2]:
-        classes = "nav-button nav-button-active" if st.session_state.page == "about" else "nav-button"
-        if st.button("About", key="nav_about", help="Go to About page"):
-            navigate_to('about')
-    with cols[3]:
-        classes = "nav-button nav-button-active" if st.session_state.page == "analysis" else "nav-button"
-        if st.button("Analysis", key="nav_analysis", help="Go to Analysis page"):
-            navigate_to('analysis')
-
-show_navigation()
-
-# Helper functions
-def extract_package_name(url):
-    if "id=" in url:
-        return url.split("id=")[1].split("&")[0].strip()
-    return None
-
-def analyze_sentiment_advanced(text):
-    if pd.isna(text) or text.strip() == "":
-        return "Neutral", 0.0, 0.0, "Unknown"
-    blob = TextBlob(str(text))
-    polarity = blob.sentiment.polarity
-    subjectivity = blob.sentiment.subjectivity
-    if polarity > 0.3:
-        return "Positive", polarity, subjectivity, "Highly Positive"
-    elif polarity > 0.1:
-        return "Positive", polarity, subjectivity, "Moderately Positive"
-    elif polarity < -0.3:
-        return "Negative", polarity, subjectivity, "Highly Negative"
-    elif polarity < -0.1:
-        return "Negative", polarity, subjectivity, "Moderately Negative"
+def get_sentiment_color(sentiment):
+    """Return color based on sentiment"""
+    if sentiment > 0.1:
+        return '#4CAF50'  # Green for positive
+    elif sentiment < -0.1:
+        return '#F44336'  # Red for negative
     else:
-        return "Neutral", polarity, subjectivity, "Neutral"
+        return '#FF9800'  # Orange for neutral
 
-def get_app_name(package_name):
-    parts = package_name.split('.')
-    return parts[-1].replace('_', ' ').title() if parts else package_name
+def analyze_reviews(app_id, count=500):
+    """Analyze app reviews"""
+    try:
+        # Fetch app details
+        app_details = app(app_id)
+        
+        # Fetch reviews
+        result, continuation_token = reviews(
+            app_id,
+            lang='en',
+            country='us',
+            sort=Sort.NEWEST,
+            count=count
+        )
+        
+        if not result:
+            return None, "No reviews found"
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(result)
+        
+        # Sentiment Analysis
+        sentiments = []
+        for review_text in df['content']:
+            if review_text:
+                blob = TextBlob(str(review_text))
+                sentiments.append(blob.sentiment.polarity)
+            else:
+                sentiments.append(0)
+        
+        df['sentiment'] = sentiments
+        df['sentiment_label'] = df['sentiment'].apply(
+            lambda x: 'Positive' if x > 0.1 else ('Negative' if x < -0.1 else 'Neutral')
+        )
+        
+        # Theme extraction
+        all_text = ' '.join(df['content'].dropna().astype(str))
+        words = re.findall(r'\b[a-zA-Z]{3,}\b', all_text.lower())
+        
+        # Filter out common words
+        stop_words = {'the', 'and', 'app', 'this', 'that', 'with', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'use', 'man', 'new', 'now', 'old', 'see', 'him', 'two', 'how', 'its', 'who', 'oil', 'sit', 'set'}
+        filtered_words = [word for word in words if word not in stop_words and len(word) > 3]
+        
+        word_freq = Counter(filtered_words)
+        top_themes = dict(word_freq.most_common(10))
+        
+        analysis_results = {
+            'app_details': app_details,
+            'reviews_df': df,
+            'total_reviews': len(df),
+            'avg_rating': df['score'].mean(),
+            'avg_sentiment': np.mean(sentiments),
+            'sentiment_distribution': df['sentiment_label'].value_counts().to_dict(),
+            'rating_distribution': df['score'].value_counts().sort_index().to_dict(),
+            'top_themes': top_themes,
+            'recent_reviews': df.head(10)
+        }
+        
+        return analysis_results, None
+        
+    except Exception as e:
+        return None, f"Error analyzing reviews: {str(e)}"
+
+# Navigation
+def show_navigation():
+    st.markdown("""
+    <div class="nav-container">
+        <div class="nav-item {}" onclick="window.location.reload()">🏠 Home</div>
+        <div class="nav-item">📋 About</div>
+        <div class="nav-item">📊 Analysis</div>
+    </div>
+    """.format('active' if st.session_state.page == 'home' else ''), unsafe_allow_html=True)
 
 # Home Page
-if st.session_state.page == 'home':
+def show_home_page():
+    st.markdown('<h1 class="main-header">📊 Feedback Forge</h1>', unsafe_allow_html=True)
+    
+    # Hero Section
     st.markdown("""
-    <div style="max-width:800px;margin:auto;text-align:center;padding:40px 24px;">
-        <h1 style="font-family:'Source Serif Pro',serif;font-size:56px;font-weight:700;color:#242424;margin-bottom:24px;">
-            Transform App Reviews Into Actionable Insights
-        </h1>
-        <p style="font-size:22px;color:#6b6b6b;line-height:1.4;margin-bottom:48px;">
-            Discover what your users really think with advanced sentiment analysis, competitive benchmarking, and detailed review intelligence.
-        </p>
-        <div style="display:flex;gap:24px;justify-content:center;">
-            <button style="background:#1a8917;color:#fff;border:none;border-radius:9999px;padding:14px 28px;font-weight:600;font-size:16px;cursor:pointer;" onclick="window.location.reload();">
-                Start Analysis
-            </button>
-            <button style="background:none;color:#1a8917;border:1px solid #1a8917;border-radius:9999px;padding:14px 28px;font-weight:600;font-size:16px;cursor:pointer;" onclick="window.location.reload();">
-                Learn More
-            </button>
+    <div class="hero-section">
+        <h2 class="hero-title">App Review Analysis Made Simple</h2>
+        <p class="hero-subtitle">Discover what your users really think with advanced sentiment analysis and feedback intelligence.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Input Section
+    st.markdown('<div class="input-section">', unsafe_allow_html=True)
+    st.markdown("### 🔗 Enter Your App's Google Play Store URL")
+    
+    app_url = st.text_input(
+        "App URL",
+        placeholder="https://play.google.com/store/apps/details?id=com.example.app",
+        help="Paste your app's Google Play Store URL here"
+    )
+    
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        analyze_button = st.button("🔍 Analyze Reviews", use_container_width=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Analysis Logic
+    if analyze_button and app_url:
+        app_id = extract_app_id_from_url(app_url)
+        
+        if not app_id:
+            st.error("❌ Invalid Google Play Store URL. Please check the format.")
+            return
+        
+        with st.spinner("🔄 Analyzing reviews... This may take a few minutes."):
+            analysis_results, error = analyze_reviews(app_id)
+            
+            if error:
+                st.error(f"❌ {error}")
+                return
+            
+            st.session_state.analysis_data = analysis_results
+            show_analysis_results(analysis_results)
+    
+    elif st.session_state.analysis_data:
+        show_analysis_results(st.session_state.analysis_data)
+    
+    else:
+        # Features Section
+        st.markdown("## ✨ Key Features")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            <div class="feature-card">
+                <div class="feature-title">🎯 Sentiment Analysis</div>
+                <div class="feature-description">Advanced AI algorithms analyze user emotions and satisfaction levels in reviews.</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="feature-card">
+                <div class="feature-title">🔍 Theme Detection</div>
+                <div class="feature-description">Automatically identify key topics and issues mentioned in user feedback.</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="feature-card">
+                <div class="feature-title">📈 Visual Analytics</div>
+                <div class="feature-description">Interactive charts and graphs to visualize review patterns and trends.</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("""
+            <div class="feature-card">
+                <div class="feature-title">⚡ Real-time Processing</div>
+                <div class="feature-description">Get instant insights from thousands of reviews in just minutes.</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="feature-card">
+                <div class="feature-title">📊 Comprehensive Reports</div>
+                <div class="feature-description">Detailed analytics with actionable insights and recommendations.</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="feature-card">
+                <div class="feature-title">🎨 Beautiful Interface</div>
+                <div class="feature-description">Clean, intuitive design that makes complex data easy to understand.</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+def show_analysis_results(results):
+    """Display comprehensive analysis results"""
+    st.markdown("## 📊 Analysis Results")
+    
+    # App Info
+    app_info = results['app_details']
+    st.markdown(f"### 📱 {app_info['title']}")
+    st.markdown(f"**Developer:** {app_info['developer']}")
+    st.markdown(f"**Category:** {app_info['genre']}")
+    
+    # Key Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{results['total_reviews']}</div>
+            <div class="metric-label">Total Reviews Analyzed</div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{results['avg_rating']:.1f}</div>
+            <div class="metric-label">Average Rating</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        sentiment_score = results['avg_sentiment']
+        sentiment_text = "Positive" if sentiment_score > 0.1 else ("Negative" if sentiment_score < -0.1 else "Neutral")
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value" style="color: {get_sentiment_color(sentiment_score)}">{sentiment_text}</div>
+            <div class="metric-label">Overall Sentiment</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        positive_pct = (results['sentiment_distribution'].get('Positive', 0) / results['total_reviews']) * 100
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-value">{positive_pct:.1f}%</div>
+            <div class="metric-label">Positive Reviews</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Charts
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Sentiment Distribution
+        sentiment_data = results['sentiment_distribution']
+        fig_sentiment = px.pie(
+            values=list(sentiment_data.values()),
+            names=list(sentiment_data.keys()),
+            title="📈 Sentiment Distribution",
+            color_discrete_map={'Positive': '#4CAF50', 'Negative': '#F44336', 'Neutral': '#FF9800'}
+        )
+        fig_sentiment.update_layout(showlegend=True)
+        st.plotly_chart(fig_sentiment, use_container_width=True)
+    
+    with col2:
+        # Rating Distribution
+        rating_data = results['rating_distribution']
+        fig_rating = px.bar(
+            x=list(rating_data.keys()),
+            y=list(rating_data.values()),
+            title="⭐ Rating Distribution",
+            labels={'x': 'Rating', 'y': 'Number of Reviews'}
+        )
+        fig_rating.update_traces(marker_color='#2E7D32')
+        st.plotly_chart(fig_rating, use_container_width=True)
+    
+    # Top Themes
+    st.markdown("### 🔍 Top Themes in Reviews")
+    themes_data = results['top_themes']
+    fig_themes = px.bar(
+        x=list(themes_data.values()),
+        y=list(themes_data.keys()),
+        orientation='h',
+        title="Most Mentioned Topics"
+    )
+    fig_themes.update_traces(marker_color='#2E7D32')
+    fig_themes.update_layout(yaxis={'categoryorder': 'total ascending'})
+    st.plotly_chart(fig_themes, use_container_width=True)
+    
+    # Recent Reviews Sample
+    st.markdown("### 💬 Recent Reviews Sample")
+    recent_reviews = results['recent_reviews']
+    
+    for idx, review in recent_reviews.iterrows():
+        sentiment_color = get_sentiment_color(review['sentiment'])
+        st.markdown(f"""
+        <div style="background: white; padding: 1rem; border-radius: 8px; margin: 0.5rem 0; border-left: 4px solid {sentiment_color};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <strong>Rating: {'⭐' * review['score']}</strong>
+                <span style="color: {sentiment_color}; font-weight: bold;">
+                    {review['sentiment_label']}
+                </span>
+            </div>
+            <p style="margin: 0; color: #333;">{review['content'][:300]}{'...' if len(str(review['content'])) > 300 else ''}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-# About Page
-elif st.session_state.page == 'about':
-    st.markdown("""
-    <div style="max-width:700px;margin:60px auto;padding:0 24px;">
-        <h1 style="font-family:'Source Serif Pro',serif;font-size:48px;font-weight:700;color:#242424;margin-bottom:24px;">About Feedback Forge</h1>
-        <p style="font-size:18px;color:#242424;line-height:1.7;margin-bottom:16px;">
-            We help app developers and product managers make better decisions by understanding what their users really think.
-        </p>
-        <h2 style="font-family:'Source Serif Pro',serif;font-size:28px;font-weight:600;color:#242424;margin-bottom:16px;">Our Mission</h2>
-        <p>In today's competitive app landscape, user feedback is more valuable than ever. But with thousands of reviews across different platforms, it's nearly impossible to manually analyze what users are actually saying about your product.</p>
-        <p>That's where Feedback Forge comes in. We've built a platform that automatically processes app store reviews, identifies key themes, and presents actionable insights in a way that's easy to understand and act upon.</p>
-        <h2 style="font-family:'Source Serif Pro',serif;font-size:28px;font-weight:600;color:#242424;margin-bottom:16px;">How It Works</h2>
-        <p>Our system uses advanced natural language processing to understand the context and emotion behind each review. We don't just count positive and negative words – we understand the nuance of human language and can Identify specific issues, feature requests, and areas of praise.</p>
-        <p>The process is simple: you provide a link to your app on the Google Play Store, and we handle the rest. Within minutes, you'll have a comprehensive analysis of user sentiment, key topics, and competitive positioning.</p>
-    </div>
-    """, unsafe_allow_html=True)
+# Main App Logic
+def main():
+    show_navigation()
+    
+    if st.session_state.page == 'home':
+        show_home_page()
 
-# Analysis Page
-elif st.session_state.page == 'analysis':
-    st.markdown("""
-    <div style="max-width:800px;margin:auto;padding:24px;">
-        <h1 style="font-family:'Source Serif Pro',serif;font-size:36px;font-weight:600;margin-bottom:20px;color:#242424;">App Review Analysis</h1>
-        <p style="font-size:18px;color:#6b6b6b;margin-bottom:40px;">
-            Enter your app's Google Play Store URL to get detailed insights about user sentiment and feedback themes.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    url = st.text_area("Google Play Store URL", height=100, placeholder="https://play.google.com/store/apps/details?id=...", key="app_url")
-    count = st.slider("Number of Reviews", min_value=50, max_value=1000, value=300, step=50)
-    language = st.selectbox("Language", ["en", "hi", "es", "fr", "de", "ja"])
-    sort_by = st.selectbox("Sort By", ["NEWEST", "MOST_RELEVANT", "RATING"])
-
-    if st.button("Start Analysis", key="start_analysis"):
-        package_name = extract_package_name(url)
-        if not package_name:
-            st.error("Please enter a valid Google Play Store app URL.")
-            st.stop()
-
-        st.info(f"Fetching reviews for {get_app_name(package_name)}...")
-        sort_mapping = {"NEWEST": Sort.NEWEST, "MOST_RELEVANT": Sort.MOST_RELEVANT, "RATING": Sort.RATING}
-
-        try:
-            result, _ = reviews(package_name, lang=language, country="us", sort=sort_mapping[sort_by], count=count)
-            if result:
-                df = pd.DataFrame(result)
-                df["sentiment"] = df["content"].apply(lambda t: analyze_sentiment_advanced(t)[0])
-                st.write(df.head())
-
-                # TODO: Add detailed analysis charts and info here
-            else:
-                st.error("No reviews retrieved.")
-        except Exception as e:
-            st.error(f"Error fetching reviews: {e}")
-
-# Footer
-st.markdown("""
-<div style="text-align:center;padding:24px;font-size:14px;color:#6b6b6b;">
-    Built with care for developers and product managers who want to understand their users better.<br>
-    Engineered by Ayush Pandey
-</div>
-""", unsafe_allow_html=True)
+if __name__ == "__main__":
+    main()
