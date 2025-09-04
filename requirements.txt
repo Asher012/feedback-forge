@@ -9,3 +9,4 @@ seaborn
 numpy
 scikit-learn
 scipy
+networkx
