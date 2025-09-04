@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -53,7 +52,7 @@ except LookupError:
 # Advanced Page Configuration
 st.set_page_config(
     page_title="ReviewForge Analytics Pro",
-    page_icon="⚡",
+    page_icon=None,  # Removed emoji
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
@@ -91,7 +90,7 @@ def apply_advanced_styling():
     /* Global Styles */
     .main, .block-container {
         font-family: 'Inter', sans-serif !important;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         min-height: 100vh;
     }
 
@@ -99,37 +98,33 @@ def apply_advanced_styling():
     .main-header {
         background: var(--card-bg);
         padding: 2rem;
-        border-radius: 16px;
-        box-shadow: var(--shadow-lg);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
         margin-bottom: 2rem;
         border: 1px solid var(--border-color);
-        backdrop-filter: blur(10px);
+        text-align: center;
     }
 
     .header-title {
-        font-size: 3rem;
+        font-size: 2.5rem;
         font-weight: 700;
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: var(--primary-color);
         margin-bottom: 0.5rem;
-        text-align: center;
     }
 
     .header-subtitle {
         font-size: 1.25rem;
         color: var(--text-secondary);
-        text-align: center;
         margin-bottom: 1rem;
     }
 
     .developer-credit {
-        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        background: var(--primary-color);
         color: white;
         padding: 0.5rem 1rem;
-        border-radius: 25px;
+        border-radius: 4px;
         font-weight: 600;
-        text-align: center;
+        display: inline-block;
         margin-top: 1rem;
         font-size: 0.9rem;
     }
@@ -138,11 +133,11 @@ def apply_advanced_styling():
     .metric-card, .analysis-card, .insight-card {
         background: var(--card-bg);
         padding: 1.5rem;
-        border-radius: 12px;
+        border-radius: 8px;
         box-shadow: var(--shadow);
         border: 1px solid var(--border-color);
         margin-bottom: 1rem;
-        backdrop-filter: blur(10px);
+        text-align: center;
     }
 
     .metric-card:hover, .analysis-card:hover, .insight-card:hover {
@@ -179,7 +174,7 @@ def apply_advanced_styling():
         text-align: center;
         padding: 1rem 0;
         background: var(--primary-color);
-        border-radius: 8px;
+        border-radius: 4px;
     }
 
     /* Button Styles */
@@ -187,11 +182,12 @@ def apply_advanced_styling():
         background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
         color: white;
         border: none;
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 0.75rem 2rem;
         font-weight: 600;
         transition: all 0.3s ease;
         box-shadow: var(--shadow);
+        width: 100%;
     }
 
     .stButton button:hover {
@@ -202,7 +198,7 @@ def apply_advanced_styling():
 
     /* Input Styles */
     .stTextInput input, .stSelectbox select, .stNumberInput input {
-        border-radius: 8px;
+        border-radius: 6px;
         border: 2px solid var(--border-color);
         padding: 0.75rem;
         transition: border-color 0.3s ease;
@@ -216,29 +212,29 @@ def apply_advanced_styling():
     /* Progress Bar */
     .stProgress .st-bo {
         background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-        height: 8px;
-        border-radius: 4px;
+        height: 6px;
+        border-radius: 3px;
     }
 
     /* Success/Warning/Error Messages */
     .stSuccess {
         background: linear-gradient(135deg, var(--success-color), #10b981);
         color: white;
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 1rem;
     }
 
     .stWarning {
         background: linear-gradient(135deg, var(--warning-color), #f59e0b);
         color: white;
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 1rem;
     }
 
     .stError {
         background: linear-gradient(135deg, var(--error-color), #ef4444);
         color: white;
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 1rem;
     }
 
@@ -246,7 +242,7 @@ def apply_advanced_styling():
     .chart-container {
         background: var(--card-bg);
         padding: 1.5rem;
-        border-radius: 12px;
+        border-radius: 8px;
         box-shadow: var(--shadow);
         border: 1px solid var(--border-color);
         margin-bottom: 2rem;
@@ -264,11 +260,12 @@ def apply_advanced_styling():
     .nav-item {
         background: var(--card-bg);
         padding: 1rem;
-        border-radius: 8px;
+        border-radius: 6px;
         margin-bottom: 0.5rem;
         cursor: pointer;
         transition: all 0.3s ease;
         border: 2px solid transparent;
+        text-align: center;
     }
 
     .nav-item:hover {
@@ -288,6 +285,7 @@ def apply_advanced_styling():
         border-radius: 8px;
         overflow: hidden;
         box-shadow: var(--shadow);
+        width: 100%;
     }
 
     .dataframe th {
@@ -350,7 +348,7 @@ def apply_advanced_styling():
 
     /* Data Table Enhancements */
     .stDataFrame {
-        border-radius: 12px;
+        border-radius: 8px;
         overflow: hidden;
         box-shadow: var(--shadow);
     }
@@ -358,7 +356,7 @@ def apply_advanced_styling():
     /* Sidebar Navigation Enhancement */
     .nav-section {
         background: var(--card-bg);
-        border-radius: 12px;
+        border-radius: 8px;
         padding: 1rem;
         margin-bottom: 1rem;
         box-shadow: var(--shadow);
