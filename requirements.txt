@@ -12,3 +12,7 @@ scipy
 networkx
 openpyxl
 nltk
+aiohttp
+holidays
+pytz
+python-dateutil
