@@ -33,6 +33,13 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 import warnings
+import asyncio
+import aiohttp
+import concurrent.futures
+from functools import lru_cache
+import holidays
+import pytz
+from dateutil import parser
 warnings.filterwarnings('ignore')
 
 # Download required NLTK data
@@ -52,7 +59,7 @@ except LookupError:
 # Advanced Page Configuration
 st.set_page_config(
     page_title="ReviewForge Analytics Pro",
-    page_icon=None,  # Removed emoji
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
@@ -383,7 +390,11 @@ def initialize_session_state():
         'user_preferences': {},
         'ml_models': {},
         'advanced_insights': {},
-        'export_data': None
+        'export_data': None,
+        'cached_reviews': {},
+        'app_info': {},
+        'user_authenticated': False,
+        'user_role': 'viewer'
     }
 
     for key, default_value in session_defaults.items():
@@ -391,6 +402,19 @@ def initialize_session_state():
             st.session_state[key] = default_value
 
 initialize_session_state()
+
+# Performance Optimization: Caching
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_scrape_reviews(package_name, count=500, sort_by=Sort.NEWEST):
+    """Cached version of review scraping to improve performance"""
+    analyzer = ReviewAnalyzer()
+    return analyzer.scrape_reviews(package_name, count, sort_by)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_generate_ml_insights(df):
+    """Cached version of ML insights generation"""
+    analyzer = ReviewAnalyzer()
+    return analyzer.generate_ml_insights(df)
 
 # Advanced Helper Functions
 class ReviewAnalyzer:
@@ -645,6 +669,40 @@ class ReviewAnalyzer:
             st.error(f"Error generating ML insights: {str(e)}")
             return {}
 
+    # NEW: Time series analysis
+    def analyze_trends(self, df):
+        """Analyze rating trends over time"""
+        if df.empty or 'at' not in df.columns:
+            return None
+            
+        df = df.copy()
+        df['date'] = pd.to_datetime(df['at']).dt.date
+        df['week'] = pd.to_datetime(df['at']).dt.to_period('W').apply(lambda r: r.start_time)
+        df['month'] = pd.to_datetime(df['at']).dt.to_period('M').apply(lambda r: r.start_time)
+        
+        # Daily trends
+        daily_stats = df.groupby('date').agg({
+            'score': ['mean', 'count'],
+            'polarity': 'mean',
+            'emotional_intensity': 'mean'
+        }).round(3)
+        
+        daily_stats.columns = ['avg_rating', 'review_count', 'avg_polarity', 'avg_intensity']
+        
+        # Weekly trends
+        weekly_stats = df.groupby('week').agg({
+            'score': ['mean', 'count'],
+            'polarity': 'mean',
+            'emotional_intensity': 'mean'
+        }).round(3)
+        
+        weekly_stats.columns = ['avg_rating', 'review_count', 'avg_polarity', 'avg_intensity']
+        
+        return {
+            'daily': daily_stats,
+            'weekly': weekly_stats
+        }
+
 # Initialize analyzer
 analyzer = ReviewAnalyzer()
 
@@ -669,7 +727,7 @@ def create_navigation():
         'deep_analysis': 'Deep Analysis Engine',
         'competitor': 'Competitive Intelligence',
         'ml_insights': 'ML Insights Laboratory',
-        'sentiment_trends': 'Sentiment Trend Analysis',
+        'trend_analysis': 'Trend Analysis',
         'export_reports': 'Export & Reporting',
         'settings': 'Advanced Settings'
     }
@@ -686,6 +744,22 @@ def create_navigation():
         <p style="color: white; font-weight: 600;">{pages[st.session_state.current_page]}</p>
     </div>
     """, unsafe_allow_html=True)
+
+    # User authentication section
+    st.sidebar.markdown("---")
+    st.sidebar.markdown('<div class="sidebar-title">User Access</div>', unsafe_allow_html=True)
+    
+    if not st.session_state.user_authenticated:
+        if st.sidebar.button("Login", key="login_btn", use_container_width=True):
+            st.session_state.user_authenticated = True
+            st.session_state.user_role = "admin"
+            st.rerun()
+    else:
+        st.sidebar.success(f"Logged in as: {st.session_state.user_role}")
+        if st.sidebar.button("Logout", key="logout_btn", use_container_width=True):
+            st.session_state.user_authenticated = False
+            st.session_state.user_role = "viewer"
+            st.rerun()
 
 def create_metrics_dashboard(df):
     """Create comprehensive metrics dashboard"""
@@ -947,7 +1021,8 @@ def dashboard_page():
 
             if package_name:
                 with st.spinner("Performing advanced analysis..."):
-                    df = analyzer.scrape_reviews(
+                    # Use cached version for better performance
+                    df = cached_scrape_reviews(
                         package_name, 
                         count=review_count, 
                         sort_by=sort_mapping[sort_option]
@@ -1002,7 +1077,8 @@ def deep_analysis_page():
         # Generate ML insights if not already done
         if 'ml_insights' not in st.session_state or not st.session_state.ml_insights:
             with st.spinner("Generating machine learning insights..."):
-                ml_insights = analyzer.generate_ml_insights(df)
+                # Use cached version for better performance
+                ml_insights = cached_generate_ml_insights(df)
                 st.session_state.ml_insights = ml_insights
 
         ml_insights = st.session_state.ml_insights
@@ -1110,7 +1186,8 @@ def competitor_analysis_page():
 
                 if package_name:
                     with st.spinner("Analyzing competitor..."):
-                        competitor_df = analyzer.scrape_reviews(package_name, count=500)
+                        # Use cached version for better performance
+                        competitor_df = cached_scrape_reviews(package_name, count=500)
 
                         if not competitor_df.empty:
                             st.session_state.competitor_data = competitor_df
@@ -1221,6 +1298,100 @@ def competitor_analysis_page():
 
         comparison_df = pd.DataFrame(comparison_metrics)
         st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+
+def trend_analysis_page():
+    """Time series analysis page"""
+    st.title("Trend Analysis")
+    st.markdown("Analyze how reviews and ratings change over time")
+
+    if st.session_state.analyzed_data is not None:
+        df = st.session_state.analyzed_data
+        
+        # Generate trend analysis
+        trends = analyzer.analyze_trends(df)
+        
+        if trends:
+            st.subheader("Rating Trends Over Time")
+            
+            # Daily trends chart
+            daily_data = trends['daily'].reset_index()
+            
+            fig_daily = px.line(
+                daily_data, 
+                x='date', 
+                y='avg_rating',
+                title='Daily Average Rating Trend',
+                labels={'date': 'Date', 'avg_rating': 'Average Rating'}
+            )
+            
+            fig_daily.add_scatter(
+                x=daily_data['date'],
+                y=[daily_data['avg_rating'].mean()] * len(daily_data),
+                mode='lines',
+                name='Overall Average',
+                line=dict(dash='dash', color='red')
+            )
+            
+            st.plotly_chart(fig_daily, use_container_width=True)
+            
+            # Review volume over time
+            st.subheader("Review Volume Over Time")
+            
+            fig_volume = px.bar(
+                daily_data,
+                x='date',
+                y='review_count',
+                title='Daily Review Volume',
+                labels={'date': 'Date', 'review_count': 'Number of Reviews'}
+            )
+            
+            st.plotly_chart(fig_volume, use_container_width=True)
+            
+            # Weekly trends
+            st.subheader("Weekly Trends")
+            
+            weekly_data = trends['weekly'].reset_index()
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                fig_weekly_rating = px.line(
+                    weekly_data,
+                    x='week',
+                    y='avg_rating',
+                    title='Weekly Average Rating',
+                    labels={'week': 'Week', 'avg_rating': 'Average Rating'}
+                )
+                st.plotly_chart(fig_weekly_rating, use_container_width=True)
+                
+            with col2:
+                fig_weekly_volume = px.bar(
+                    weekly_data,
+                    x='week',
+                    y='review_count',
+                    title='Weekly Review Volume',
+                    labels={'week': 'Week', 'review_count': 'Number of Reviews'}
+                )
+                st.plotly_chart(fig_weekly_volume, use_container_width=True)
+                
+            # Correlation between review volume and rating
+            st.subheader("Volume vs Rating Correlation")
+            
+            correlation = daily_data['review_count'].corr(daily_data['avg_rating'])
+            
+            st.metric("Correlation Coefficient", f"{correlation:.3f}")
+            
+            if correlation > 0.3:
+                st.info("Positive correlation: More reviews tend to coincide with higher ratings")
+            elif correlation < -0.3:
+                st.info("Negative correlation: More reviews tend to coincide with lower ratings")
+            else:
+                st.info("Weak correlation: Review volume and rating are not strongly related")
+                
+        else:
+            st.warning("Insufficient data for trend analysis. Need reviews with timestamps.")
+    else:
+        st.info("Please analyze an application first to access trend analysis.")
 
 def settings_page():
     """Advanced settings and preferences"""
@@ -1431,8 +1602,8 @@ def main():
         competitor_analysis_page()
     elif st.session_state.current_page == 'ml_insights':
         deep_analysis_page()  # Reuse deep analysis for ML insights
-    elif st.session_state.current_page == 'sentiment_trends':
-        dashboard_page()  # Can be expanded with trend analysis
+    elif st.session_state.current_page == 'trend_analysis':
+        trend_analysis_page()
     elif st.session_state.current_page == 'export_reports':
         export_reports_page()
     elif st.session_state.current_page == 'settings':
