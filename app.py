@@ -40,15 +40,6 @@ from functools import lru_cache
 import holidays
 import pytz
 from dateutil import parser
-import requests
-from bs4 import BeautifulSoup
-import random
-from fake_useragent import UserAgent
-from fpdf import FPDF
-import pptx
-from pptx.util import Inches
-import schedule
-import threading
 warnings.filterwarnings('ignore')
 
 # Download required NLTK data
@@ -68,11 +59,11 @@ except LookupError:
 # Advanced Page Configuration
 st.set_page_config(
     page_title="ReviewForge Analytics Pro",
-    page_icon="📊",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        'Get Help': 'https://github.com/ayushpandey',
+        'Get Help': None,
         'Report a bug': None,
         'About': "ReviewForge Analytics Pro - Advanced Review Analysis Platform"
     }
@@ -349,20 +340,6 @@ def apply_advanced_styling():
         .metric-value {
             font-size: 2rem;
         }
-        
-        /* Mobile-specific optimizations */
-        .stButton button {
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
-        }
-        
-        .chart-container {
-            padding: 1rem;
-        }
-        
-        .main-header {
-            padding: 1rem;
-        }
     }
 
     /* Loading Animation */
@@ -398,18 +375,6 @@ def apply_advanced_styling():
         margin-bottom: 0.5rem;
         font-size: 1.1rem;
     }
-    
-    /* Touch-friendly elements */
-    @media (hover: none) and (pointer: coarse) {
-        .stButton button {
-            min-height: 44px;
-            min-width: 44px;
-        }
-        
-        .nav-item {
-            padding: 1.2rem;
-        }
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -421,7 +386,6 @@ def initialize_session_state():
         'current_page': 'dashboard',
         'analyzed_data': None,
         'competitor_data': None,
-        'gmb_data': None,
         'analysis_history': [],
         'user_preferences': {},
         'ml_models': {},
@@ -430,10 +394,7 @@ def initialize_session_state():
         'cached_reviews': {},
         'app_info': {},
         'user_authenticated': False,
-        'user_role': 'viewer',
-        'alerts': [],
-        'scheduled_reports': [],
-        'real_time_monitoring': False
+        'user_role': 'viewer'
     }
 
     for key, default_value in session_defaults.items():
@@ -454,109 +415,6 @@ def cached_generate_ml_insights(df):
     """Cached version of ML insights generation"""
     analyzer = ReviewAnalyzer()
     return analyzer.generate_ml_insights(df)
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def cached_scrape_gmb_reviews(url, max_reviews=100):
-    """Cached version of GMB review scraping"""
-    scraper = GMBScraper()
-    return scraper.scrape_gmb_reviews(url, max_reviews)
-
-# Google My Business Scraper
-class GMBScraper:
-    def __init__(self):
-        self.ua = UserAgent()
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': self.ua.random,
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1'
-        })
-        
-    def extract_place_id(self, url):
-        """Extract place ID from Google Maps URL"""
-        patterns = [
-            r'google\.com/maps/place/[^/]+/([^/]+)/',
-            r'google\.com/maps/place/.+@([^/]+)/',
-            r'place_id=([^&]+)'
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, url)
-            if match:
-                return match.group(1)
-        return None
-        
-    def scrape_gmb_reviews(self, url, max_reviews=100):
-        """Scrape Google My Business reviews from a given URL"""
-        try:
-            # Extract place ID from URL
-            place_id = self.extract_place_id(url)
-            if not place_id:
-                st.error("Could not extract place ID from the provided URL")
-                return pd.DataFrame()
-            
-            # Construct the reviews URL
-            reviews_url = f"https://www.google.com/maps/place/{place_id}/"
-            
-            # Send request
-            response = self.session.get(reviews_url)
-            if response.status_code != 200:
-                st.error(f"Failed to access Google Maps page. Status code: {response.status_code}")
-                return pd.DataFrame()
-                
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Find review elements
-            review_elements = soup.find_all('div', class_='jftiEf')
-            reviews = []
-            
-            for i, element in enumerate(review_elements):
-                if i >= max_reviews:
-                    break
-                    
-                try:
-                    # Extract review details
-                    reviewer_name = element.get('aria-label', '').replace('review by ', '').split(' ', 1)[1]
-                    
-                    # Find rating
-                    rating_element = element.find('span', class_='kvMYJc')
-                    rating = int(rating_element.get('aria-label').split(' ')[0]) if rating_element else 0
-                    
-                    # Find review text
-                    review_text_element = element.find('span', class_='wiI7pd')
-                    review_text = review_text_element.text if review_text_element else ""
-                    
-                    # Find review date
-                    date_element = element.find('span', class_='rsqaWe')
-                    review_date = date_element.text if date_element else ""
-                    
-                    reviews.append({
-                        'userName': reviewer_name,
-                        'content': review_text,
-                        'score': rating,
-                        'at': review_date,
-                        'source': 'Google My Business'
-                    })
-                    
-                    # Add small delay to avoid being blocked
-                    time.sleep(0.1)
-                    
-                except Exception as e:
-                    st.warning(f"Error parsing review {i}: {str(e)}")
-                    continue
-            
-            if not reviews:
-                st.warning("No reviews found on the page. The page structure might have changed.")
-                return pd.DataFrame()
-                
-            return pd.DataFrame(reviews)
-            
-        except Exception as e:
-            st.error(f"Error scraping GMB reviews: {str(e)}")
-            return pd.DataFrame()
 
 # Advanced Helper Functions
 class ReviewAnalyzer:
@@ -763,7 +621,7 @@ class ReviewAnalyzer:
 
         try:
             # Prepare text data
-            texts = df['content'].fillna('').ast(str)
+            texts = df['content'].fillna('').astype(str)
             processed_texts = [self.preprocess_text(text) for text in texts]
 
             # TF-IDF Vectorization
@@ -870,10 +728,8 @@ def create_navigation():
         'competitor': 'Competitive Intelligence',
         'ml_insights': 'ML Insights Laboratory',
         'trend_analysis': 'Trend Analysis',
-        'gmb_analysis': 'Google My Business',
         'export_reports': 'Export & Reporting',
-        'settings': 'Advanced Settings',
-        'real_time': 'Real-time Dashboard'
+        'settings': 'Advanced Settings'
     }
 
     for page_key, page_name in pages.items():
@@ -1303,7 +1159,7 @@ def competitor_analysis_page():
     with col1:
         st.subheader("Primary App Analysis")
         if st.session_state.analyzed_data is not None:
-            st.success(f"✓ {st.session_state.get('current_app_name', 'App')} analyzed")
+            st.success(f"âœ“ {st.session_state.get('current_app_name', 'App')} analyzed")
             df_primary = st.session_state.analyzed_data
 
             # Primary app metrics
@@ -1434,7 +1290,7 @@ def competitor_analysis_page():
             st.session_state.get('competitor_app_name', 'Competitor'): [
                 f"{df_competitor['score'].mean():.2f}" if 'score' in df_competitor.columns else 'N/A',
                 len(df_competitor),
-                f"{(df['sentiment'].str.contains('Positive', na=False).sum() / len(df_competitor)) * 100:.1f}%" if 'sentiment' in df_competitor.columns else 'N/A',
+                f"{(df_competitor['sentiment'].str.contains('Positive', na=False).sum() / len(df_competitor)) * 100:.1f}%" if 'sentiment' in df_competitor.columns else 'N/A',
                 f"{df_competitor['confidence'].mean() * 100:.1f}%" if 'confidence' in df_competitor.columns else 'N/A',
                 f"{abs(df_competitor['emotional_intensity'].mean()):.2f}" if 'emotional_intensity' in df_competitor.columns else 'N/A'
             ]
@@ -1537,342 +1393,6 @@ def trend_analysis_page():
     else:
         st.info("Please analyze an application first to access trend analysis.")
 
-def gmb_analysis_page():
-    """Google My Business reviews analysis"""
-    st.title("Google My Business Analysis")
-    st.markdown("Analyze reviews from any Google My Business listing")
-    
-    # Input for GMB URL
-    gmb_url = st.text_input(
-        "Google My Business URL",
-        placeholder="https://www.google.com/maps/place/Your+Business/",
-        help="Enter the full URL of the Google My Business listing you want to analyze"
-    )
-    
-    review_count = st.slider("Number of reviews to analyze", 10, 200, 50)
-    
-    if st.button("Analyze GMB Reviews", type="primary", use_container_width=True):
-        if gmb_url:
-            with st.spinner("Extracting GMB reviews. This may take a moment..."):
-                df = cached_scrape_gmb_reviews(gmb_url, review_count)
-                
-                if not df.empty:
-                    # Perform sentiment analysis
-                    progress_bar = st.progress(0)
-                    sentiments = []
-                    
-                    for idx, review in df.iterrows():
-                        sentiment_data = analyzer.advanced_sentiment_analysis(review['content'])
-                        sentiments.append(sentiment_data)
-                        progress_bar.progress((idx + 1) / len(df))
-                    
-                    # Add sentiment data to DataFrame
-                    for idx, sentiment in enumerate(sentiments):
-                        for key, value in sentiment.items():
-                            if key == 'aspects':
-                                for aspect, present in value.items():
-                                    df.loc[idx, f'aspect_{aspect}'] = present
-                            elif key == 'keywords':
-                                df.loc[idx, 'keywords'] = ', '.join(value) if value else ''
-                            else:
-                                df.loc[idx, key] = value
-                    
-                    st.session_state.gmb_data = df
-                    st.success(f"Successfully analyzed {len(df)} GMB reviews!")
-                    
-                    # Extract business name from URL for display
-                    business_name = "Unknown Business"
-                    match = re.search(r'place/([^/]+)', gmb_url)
-                    if match:
-                        business_name = match.group(1).replace('+', ' ')
-                    st.session_state.current_gmb_business = business_name
-                else:
-                    st.error("Failed to extract GMB reviews. Please check the URL and try again.")
-        else:
-            st.warning("Please enter a valid Google My Business URL")
-    
-    # Display results if available
-    if st.session_state.get('gmb_data') is not None:
-        df = st.session_state.gmb_data
-        business_name = st.session_state.get('current_gmb_business', 'Unknown Business')
-        
-        st.markdown("---")
-        st.subheader(f"GMB Analysis Results: {business_name}")
-        
-        # Metrics dashboard
-        create_metrics_dashboard(df)
-        
-        # Visualizations
-        create_advanced_visualizations(df)
-        
-        # Recent reviews table
-        st.subheader("Recent GMB Reviews")
-        display_columns = ['at', 'userName', 'score', 'sentiment', 'confidence', 'content']
-        available_columns = [col for col in display_columns if col in df.columns]
-        
-        if available_columns:
-            sample_df = df[available_columns].head(10).copy()
-            if 'at' in sample_df.columns:
-                sample_df['at'] = pd.to_datetime(sample_df['at']).dt.strftime('%Y-%m-%d')
-            if 'content' in sample_df.columns:
-                sample_df['content'] = sample_df['content'].str[:100] + '...'
-            
-            st.dataframe(sample_df, use_container_width=True, hide_index=True)
-            
-        # Export options for GMB data
-        st.subheader("Export GMB Data")
-        if st.button("Export GMB Reviews as CSV", use_container_width=True):
-            csv_data = df.to_csv(index=False)
-            st.download_button(
-                label="Download CSV Report",
-                data=csv_data,
-                file_name=f"gmb_analysis_{business_name}_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
-            )
-
-def real_time_dashboard():
-    """Real-time monitoring dashboard"""
-    st.title("Real-time Dashboard")
-    st.markdown("Live monitoring of reviews and automatic alerts")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Monitoring Settings")
-        monitoring_enabled = st.checkbox("Enable Real-time Monitoring", value=st.session_state.real_time_monitoring)
-        
-        if monitoring_enabled != st.session_state.real_time_monitoring:
-            st.session_state.real_time_monitoring = monitoring_enabled
-            if monitoring_enabled:
-                st.success("Real-time monitoring enabled")
-            else:
-                st.info("Real-time monitoring disabled")
-        
-        if monitoring_enabled:
-            monitoring_interval = st.selectbox("Check Interval", options=["5 minutes", "15 minutes", "30 minutes", "1 hour"], index=1)
-            alert_threshold = st.slider("Rating Drop Alert Threshold", 0.1, 2.0, 0.5, 0.1)
-            
-            if st.button("Save Monitoring Settings", use_container_width=True):
-                st.success(f"Monitoring settings saved. Checking every {monitoring_interval} with {alert_threshold} threshold.")
-    
-    with col2:
-        st.subheader("Alerts & Notifications")
-        
-        # Sample alerts
-        sample_alerts = [
-            {"type": "warning", "message": "Rating dropped by 0.7 points in last 24 hours", "time": "2 hours ago"},
-            {"type": "info", "message": "10 new reviews received", "time": "5 hours ago"},
-            {"type": "success", "message": "Positive sentiment increased by 15%", "time": "1 day ago"}
-        ]
-        
-        for alert in sample_alerts:
-            if alert["type"] == "warning":
-                st.warning(f"⚠️ {alert['message']} ({alert['time']})")
-            elif alert["type"] == "info":
-                st.info(f"ℹ️ {alert['message']} ({alert['time']})")
-            elif alert["type"] == "success":
-                st.success(f"✅ {alert['message']} ({alert['time']})")
-    
-    # Scheduled reports section
-    st.subheader("Scheduled Reports")
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        report_frequency = st.selectbox("Report Frequency", options=["Daily", "Weekly", "Monthly"], index=1)
-        report_recipient = st.text_input("Email Recipient", placeholder="email@example.com")
-    
-    with col2:
-        st.write("")  # Spacer
-        if st.button("Schedule Report", use_container_width=True):
-            if report_recipient and "@" in report_recipient:
-                st.session_state.scheduled_reports.append({
-                    "frequency": report_frequency,
-                    "recipient": report_recipient,
-                    "active": True
-                })
-                st.success(f"{report_frequency} report scheduled for {report_recipient}")
-            else:
-                st.error("Please enter a valid email address")
-    
-    # Display scheduled reports
-    if st.session_state.scheduled_reports:
-        st.write("Active Report Schedules:")
-        for i, report in enumerate(st.session_state.scheduled_reports):
-            col1, col2, col3 = st.columns([3, 1, 1])
-            with col1:
-                st.text(f"{report['frequency']} report to {report['recipient']}")
-            with col2:
-                status = "Active" if report['active'] else "Paused"
-                st.text(f"Status: {status}")
-            with col3:
-                if st.button("Remove", key=f"remove_{i}"):
-                    st.session_state.scheduled_reports.pop(i)
-                    st.rerun()
-
-def export_reports_page():
-    """Export and reporting functionality"""
-    st.title("Export & Reporting")
-    st.markdown("Generate comprehensive reports and export your analysis data")
-
-    # Determine which data to use (GMB or Play Store)
-    if st.session_state.gmb_data is not None:
-        df = st.session_state.gmb_data
-        source_name = "GMB"
-        app_name = st.session_state.get('current_gmb_business', 'Unknown Business')
-    elif st.session_state.analyzed_data is not None:
-        df = st.session_state.analyzed_data
-        source_name = "Play Store"
-        app_name = st.session_state.get('current_app_name', 'Unknown App')
-    else:
-        st.info("Please analyze an application or GMB listing first to access export functionality.")
-        return
-
-    st.subheader(f"Export Options for {app_name} ({source_name})")
-
-    # Export format selection
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        if st.button("Export as CSV", use_container_width=True):
-            csv_data = df.to_csv(index=False)
-            st.download_button(
-                label="Download CSV Report",
-                data=csv_data,
-                file_name=f"{app_name}_analysis_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
-            )
-
-    with col2:
-        if st.button("Export as Excel", use_container_width=True):
-            try:
-                excel_buffer = BytesIO()
-                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                    df.to_excel(writer, sheet_name='Analysis Results', index=False)
-
-                    # Add summary sheet
-                    summary_data = {
-                        'Metric': ['Total Reviews', 'Average Rating'],
-                        'Value': [
-                            len(df),
-                            f"{df['score'].mean():.2f}" if 'score' in df.columns else 'N/A'
-                        ]
-                    }
-                    
-                    if 'sentiment' in df.columns:
-                        summary_data['Metric'].extend(['Positive Sentiment %', 'Negative Sentiment %'])
-                        summary_data['Value'].extend([
-                            f"{(df['sentiment'].str.contains('Positive', na=False).sum() / len(df)) * 100:.1f}%",
-                            f"{(df['sentiment'].str.contains('Negative', na=False).sum() / len(df)) * 100:.1f}%"
-                        ])
-                    
-                    summary_df = pd.DataFrame(summary_data)
-                    summary_df.to_excel(writer, sheet_name='Summary', index=False)
-
-                excel_data = excel_buffer.getvalue()
-                st.download_button(
-                    label="Download Excel Report",
-                    data=excel_data,
-                    file_name=f"{app_name}_analysis_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            except Exception as e:
-                st.error(f"Error creating Excel file: {str(e)}")
-
-    with col3:
-        if st.button("Export as JSON", use_container_width=True):
-            json_data = df.to_json(orient='records', date_format='iso')
-            st.download_button(
-                label="Download JSON Data",
-                data=json_data,
-                file_name=f"{app_name}_analysis_{datetime.now().strftime('%Y%m%d')}.json",
-                mime="application/json"
-            )
-
-    with col4:
-        if st.button("Generate PDF Report", use_container_width=True):
-            # Create a simple PDF report
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
-            pdf.cell(200, 10, txt=f"{app_name} Analysis Report", ln=1, align='C')
-            pdf.cell(200, 10, txt=f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=1, align='C')
-            pdf.cell(200, 10, txt=f"Total Reviews: {len(df)}", ln=1, align='L')
-            
-            if 'score' in df.columns:
-                pdf.cell(200, 10, txt=f"Average Rating: {df['score'].mean():.2f}", ln=1, align='L')
-            
-            pdf_output = pdf.output(dest='S').encode('latin1')
-            st.download_button(
-                label="Download PDF Report",
-                data=pdf_output,
-                file_name=f"{app_name}_analysis_{datetime.now().strftime('%Y%m%d')}.pdf",
-                mime="application/pdf"
-            )
-
-    # Quick preview of export data
-    st.subheader("Export Preview")
-
-    export_columns = st.multiselect(
-        "Select columns to include in export",
-        options=df.columns.tolist(),
-        default=[col for col in ['at', 'userName', 'score', 'sentiment', 'confidence', 'content'] 
-                if col in df.columns]
-    )
-
-    if export_columns:
-        preview_df = df[export_columns].head(10)
-        st.dataframe(preview_df, use_container_width=True, hide_index=True)
-
-        st.info(f"Preview showing first 10 rows. Full export will contain {len(df)} rows.")
-
-    # Generate comprehensive report
-    st.subheader("Comprehensive Analysis Report")
-
-    if st.button("Generate Full Report", type="primary"):
-        with st.spinner("Generating comprehensive report..."):
-            report_content = f"""
-# {app_name} - Analysis Report
-Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Developed by: Ayush Pandey - ReviewForge Analytics Pro
-
-## Executive Summary
-- **Total Reviews Analyzed:** {len(df):,}
-- **Average Rating:** {df['score'].mean():.2f} / 5.0 ({df['score'].std():.2f} std dev)""" + (f"""
-- **Analysis Period:** {df['at'].min() if 'at' in df.columns else 'N/A'} to {df['at'].max() if 'at' in df.columns else 'N/A'}""" if 'at' in df.columns else "") + (f"""
-- **Sentiment Distribution:**
-  - Positive: {(df['sentiment'].str.contains('Positive', na=False).sum() / len(df)) * 100:.1f}%
-  - Neutral: {(df['sentiment'].str.contains('Neutral', na=False).sum() / len(df)) * 100:.1f}%
-  - Negative: {(df['sentiment'].str.contains('Negative', na=False).sum() / len(df)) * 100:.1f}%""" if 'sentiment' in df.columns else "") + f"""
-
-## Key Insights
-- **Analysis Confidence:** {df['confidence'].mean() * 100:.1f}% average confidence""" + (f"""
-- **Emotional Intensity:** {abs(df['emotional_intensity'].mean()):.2f} average intensity""" if 'emotional_intensity' in df.columns else "") + (f"""
-- **Most Common Rating:** {df['score'].mode().iloc[0] if 'score' in df.columns and not df['score'].mode().empty else 'N/A'} stars""" if 'score' in df.columns else "") + f"""
-
-## Recommendations
-Based on the analysis of {len(df):,} reviews, the following strategic recommendations are suggested:
-
-1. **Performance Optimization:** {'Focus on addressing performance issues mentioned in reviews' if any(df['content'].str.contains('slow|lag|crash', case=False, na=False)) else 'Current performance appears satisfactory based on user feedback'}
-
-2. **User Experience:** {'Consider UI/UX improvements based on user feedback patterns' if any(df['content'].str.contains('interface|design|ui', case=False, na=False)) else 'User interface receives positive feedback overall'}
-
-3. **Feature Development:** {'Users are requesting additional features - consider feature roadmap expansion' if any(df['content'].str.contains('feature|add|need', case=False, na=False)) else 'Current feature set appears to meet user expectations'}
-
----
-*Report generated by ReviewForge Analytics Pro - Advanced Review Analysis Platform*
-*Developer: Ayush Pandey*
-            """
-
-            st.markdown(report_content)
-
-            st.download_button(
-                label="Download Full Report (Markdown)",
-                data=report_content,
-                file_name=f"{app_name}_full_report_{datetime.now().strftime('%Y%m%d')}.md",
-                mime="text/markdown"
-            )
-
 def settings_page():
     """Advanced settings and preferences"""
     st.title("Advanced Settings")
@@ -1938,6 +1458,136 @@ def settings_page():
     for key, value in system_info.items():
         st.text(f"{key}: {value}")
 
+def export_reports_page():
+    """Export and reporting functionality"""
+    st.title("Export & Reporting")
+    st.markdown("Generate comprehensive reports and export your analysis data")
+
+    if st.session_state.analyzed_data is not None:
+        df = st.session_state.analyzed_data
+        app_name = st.session_state.get('current_app_name', 'Unknown App')
+
+        st.subheader(f"Export Options for {app_name}")
+
+        # Export format selection
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            if st.button("Export as CSV", use_container_width=True):
+                csv_data = df.to_csv(index=False)
+                st.download_button(
+                    label="Download CSV Report",
+                    data=csv_data,
+                    file_name=f"{app_name}_analysis_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+
+        with col2:
+            if st.button("Export as Excel", use_container_width=True):
+                try:
+                    excel_buffer = BytesIO()
+                    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                        df.to_excel(writer, sheet_name='Analysis Results', index=False)
+
+                        # Add summary sheet if we have sentiment data
+                        if 'sentiment' in df.columns:
+                            summary_data = {
+                                'Metric': ['Total Reviews', 'Average Rating', 'Positive Sentiment %', 'Negative Sentiment %'],
+                                'Value': [
+                                    len(df),
+                                    f"{df['score'].mean():.2f}" if 'score' in df.columns else 'N/A',
+                                    f"{(df['sentiment'].str.contains('Positive', na=False).sum() / len(df)) * 100:.1f}%",
+                                    f"{(df['sentiment'].str.contains('Negative', na=False).sum() / len(df)) * 100:.1f}%"
+                                ]
+                            }
+                            summary_df = pd.DataFrame(summary_data)
+                            summary_df.to_excel(writer, sheet_name='Summary', index=False)
+
+                    excel_data = excel_buffer.getvalue()
+                    st.download_button(
+                        label="Download Excel Report",
+                        data=excel_data,
+                        file_name=f"{app_name}_analysis_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                except Exception as e:
+                    st.error(f"Error creating Excel file: {str(e)}")
+
+        with col3:
+            if st.button("Export as JSON", use_container_width=True):
+                json_data = df.to_json(orient='records', date_format='iso')
+                st.download_button(
+                    label="Download JSON Data",
+                    data=json_data,
+                    file_name=f"{app_name}_analysis_{datetime.now().strftime('%Y%m%d')}.json",
+                    mime="application/json"
+                )
+
+        # Quick preview of export data
+        st.subheader("Export Preview")
+
+        export_columns = st.multiselect(
+            "Select columns to include in export",
+            options=df.columns.tolist(),
+            default=[col for col in ['at', 'userName', 'score', 'sentiment', 'confidence', 'content'] 
+                    if col in df.columns]
+        )
+
+        if export_columns:
+            preview_df = df[export_columns].head(10)
+            st.dataframe(preview_df, use_container_width=True, hide_index=True)
+
+            st.info(f"Preview showing first 10 rows. Full export will contain {len(df)} rows.")
+
+        # Generate comprehensive report
+        st.subheader("Comprehensive Analysis Report")
+
+        if st.button("Generate Full Report", type="primary"):
+            with st.spinner("Generating comprehensive report..."):
+                report_content = f"""
+# {app_name} - Analysis Report
+Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Developed by: Ayush Pandey - ReviewForge Analytics Pro
+
+## Executive Summary
+- **Total Reviews Analyzed:** {len(df):,}
+- **Analysis Period:** {df['at'].min() if 'at' in df.columns else 'N/A'} to {df['at'].max() if 'at' in df.columns else 'N/A'}
+- **Average Rating:** {df['score'].mean():.2f} / 5.0 ({df['score'].std():.2f} std dev)
+- **Sentiment Distribution:**
+  - Positive: {(df['sentiment'].str.contains('Positive', na=False).sum() / len(df)) * 100:.1f}%
+  - Neutral: {(df['sentiment'].str.contains('Neutral', na=False).sum() / len(df)) * 100:.1f}%
+  - Negative: {(df['sentiment'].str.contains('Negative', na=False).sum() / len(df)) * 100:.1f}%
+
+## Key Insights
+- **Analysis Confidence:** {df['confidence'].mean() * 100:.1f}% average confidence
+- **Emotional Intensity:** {abs(df['emotional_intensity'].mean()):.2f} average intensity
+- **Most Common Rating:** {df['score'].mode().iloc[0] if 'score' in df.columns and not df['score'].mode().empty else 'N/A'} stars
+
+## Recommendations
+Based on the analysis of {len(df):,} reviews, the following strategic recommendations are suggested:
+
+1. **Performance Optimization:** {'Focus on addressing performance issues mentioned in reviews' if any(df['content'].str.contains('slow|lag|crash', case=False, na=False)) else 'Current performance appears satisfactory based on user feedback'}
+
+2. **User Experience:** {'Consider UI/UX improvements based on user feedback patterns' if any(df['content'].str.contains('interface|design|ui', case=False, na=False)) else 'User interface receives positive feedback overall'}
+
+3. **Feature Development:** {'Users are requesting additional features - consider feature roadmap expansion' if any(df['content'].str.contains('feature|add|need', case=False, na=False)) else 'Current feature set appears to meet user expectations'}
+
+---
+*Report generated by ReviewForge Analytics Pro - Advanced Review Analysis Platform*
+*Developer: Ayush Pandey*
+                """
+
+                st.markdown(report_content)
+
+                st.download_button(
+                    label="Download Full Report (Markdown)",
+                    data=report_content,
+                    file_name=f"{app_name}_full_report_{datetime.now().strftime('%Y%m%d')}.md",
+                    mime="text/markdown"
+                )
+    else:
+        st.info("Please analyze an application first to access export functionality.")
+
 # Main application logic
 def main():
     """Main application controller"""
@@ -1951,24 +1601,20 @@ def main():
     elif st.session_state.current_page == 'competitor':
         competitor_analysis_page()
     elif st.session_state.current_page == 'ml_insights':
-        deep_analysis_page()
+        deep_analysis_page()  # Reuse deep analysis for ML insights
     elif st.session_state.current_page == 'trend_analysis':
         trend_analysis_page()
-    elif st.session_state.current_page == 'gmb_analysis':
-        gmb_analysis_page()
     elif st.session_state.current_page == 'export_reports':
         export_reports_page()
     elif st.session_state.current_page == 'settings':
         settings_page()
-    elif st.session_state.current_page == 'real_time':
-        real_time_dashboard()
 
     # Footer
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #64748b; margin-top: 2rem;">
         <p><strong>ReviewForge Analytics Pro</strong> - Advanced AI-Powered Review Analysis Platform</p>
-        <p>Developed by <strong>Ayush Pandey</strong> | Version 2.0.0 Pro | © 2024</p>
+        <p>Developed by <strong>Ayush Pandey</strong> | Version 2.0.0 Pro | Â© 2024</p>
     </div>
     """, unsafe_allow_html=True)
 
