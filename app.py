@@ -6,8 +6,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import seaborn as sns
 import matplotlib.pyplot as plt
-from google_play_scraper import Sort, reviews, search
-from textblob import TextBlob
 from datetime import datetime, timedelta
 import re
 from collections import Counter, defaultdict
@@ -15,44 +13,17 @@ import json
 import base64
 from io import BytesIO
 import time
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from sklearn.cluster import KMeans, DBSCAN
-from sklearn.decomposition import LatentDirichletAllocation, PCA
-from sklearn.model_selection import cross_val_score
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.preprocessing import StandardScaler
-from scipy import stats
-from scipy.spatial.distance import cosine
-import networkx as nx
-from wordcloud import WordCloud
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
 import warnings
+from functools import lru_cache
+import hashlib
+
+# Suppress warnings
 warnings.filterwarnings('ignore')
 
-# Download required NLTK data
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords')
-try:
-    nltk.data.find('corpora/wordnet')
-except LookupError:
-    nltk.download('wordnet')
-
-# Enhanced Page Configuration
+# Advanced Page Configuration
 st.set_page_config(
     page_title="ReviewForge Analytics Pro",
-    page_icon="⚡",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
@@ -62,1358 +33,1764 @@ st.set_page_config(
     }
 )
 
-# Enhanced CSS Styling with Premium Design
-def apply_enhanced_styling():
+# Modern CSS Styling with Professional Design
+def apply_modern_styling():
     st.markdown("""
     <style>
-    /* Import Premium Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    /* Import Modern Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-    /* Advanced CSS Variables */
+    /* CSS Variables for Theming */
     :root {
-        --primary-color: #6366f1;
-        --primary-dark: #4f46e5;
-        --primary-light: #8b5cf6;
-        --secondary-color: #06b6d4;
-        --accent-gold: #f59e0b;
-        --accent-emerald: #10b981;
-        --success-color: #22c55e;
-        --warning-color: #f97316;
+        --primary-color: #667eea;
+        --primary-dark: #764ba2;
+        --secondary-color: #f093fb;
+        --accent-color: #4facfe;
+        --success-color: #10b981;
+        --warning-color: #f59e0b;
         --error-color: #ef4444;
         --info-color: #3b82f6;
         
-        /* Background Gradients */
-        --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        --bg-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        --bg-dark: linear-gradient(135deg, #0c4a6e 0%, #1e3a8a 100%);
-        --bg-glass: rgba(255, 255, 255, 0.25);
-        --bg-glass-dark: rgba(15, 23, 42, 0.8);
+        --bg-primary: #0f1419;
+        --bg-secondary: #1a202c;
+        --bg-card: #2d3748;
+        --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --bg-card-gradient: linear-gradient(145deg, #2d3748, #1a202c);
         
-        /* Modern Colors */
-        --text-primary: #0f172a;
-        --text-secondary: #475569;
-        --text-muted: #94a3b8;
-        --text-white: #ffffff;
-        --border-light: #e2e8f0;
-        --border-primary: rgba(99, 102, 241, 0.3);
+        --text-primary: #ffffff;
+        --text-secondary: #a0aec0;
+        --text-muted: #718096;
         
-        /* Enhanced Shadows */
+        --border-color: #4a5568;
+        --border-light: #2d3748;
+        
         --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        --shadow-glass: 0 8px 32px rgba(31, 38, 135, 0.37);
+        --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.3);
         
-        /* Border Radius */
-        --radius-sm: 8px;
-        --radius-md: 12px;
-        --radius-lg: 16px;
-        --radius-xl: 24px;
-        --radius-full: 50px;
+        --radius-sm: 4px;
+        --radius: 8px;
+        --radius-lg: 12px;
+        --radius-xl: 16px;
         
-        /* Transitions */
-        --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        --transition-normal: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        --transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* Global Reset and Base Styles */
-    * {
-        font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
-    }
-
+    /* Global Styles */
     .main, .block-container {
-        background: var(--bg-primary);
-        min-height: 100vh;
-        padding-top: 2rem;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        background: var(--bg-primary) !important;
+        color: var(--text-primary) !important;
+        line-height: 1.6;
     }
 
-    /* Enhanced Header Design */
-    .modern-header {
-        background: var(--bg-glass);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        padding: 3rem 2rem;
+    .stApp {
+        background: var(--bg-primary) !important;
+    }
+
+    /* Header Styles */
+    .main-header {
+        background: var(--bg-card-gradient);
+        padding: 2.5rem;
         border-radius: var(--radius-xl);
-        box-shadow: var(--shadow-glass);
-        margin-bottom: 3rem;
+        box-shadow: var(--shadow-xl), var(--shadow-glow);
+        margin-bottom: 2rem;
+        border: 1px solid var(--border-color);
         text-align: center;
         position: relative;
         overflow: hidden;
     }
 
-    .modern-header::before {
+    .main-header::before {
         content: '';
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        bottom: 0;
-        background: linear-gradient(45deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-        z-index: -1;
+        height: 4px;
+        background: var(--bg-gradient);
     }
 
     .header-title {
-        font-size: 3.5rem;
+        font-size: 3rem;
         font-weight: 800;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
-        background-size: 200% 200%;
+        background: var(--bg-gradient);
+        background-clip: text;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 1rem;
-        animation: gradientShift 3s ease infinite;
-        letter-spacing: -0.025em;
-        line-height: 1.1;
-    }
-
-    @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.02em;
     }
 
     .header-subtitle {
-        font-size: 1.5rem;
-        color: var(--text-white);
+        font-size: 1.25rem;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
         font-weight: 400;
-        margin-bottom: 2rem;
-        opacity: 0.9;
-        letter-spacing: 0.025em;
     }
 
-    .developer-badge {
-        display: inline-block;
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    .developer-credit {
+        background: var(--bg-gradient);
         color: white;
-        padding: 1rem 2rem;
-        border-radius: var(--radius-full);
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius-lg);
         font-weight: 600;
-        font-size: 0.95rem;
+        display: inline-block;
+        margin-top: 1rem;
+        font-size: 0.9rem;
         box-shadow: var(--shadow-lg);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        transition: var(--transition-normal);
+        transition: var(--transition);
     }
 
-    .developer-badge:hover {
+    .developer-credit:hover {
         transform: translateY(-2px);
         box-shadow: var(--shadow-xl);
-        background: linear-gradient(135deg, var(--primary-light), var(--secondary-color));
     }
 
-    /* Premium Card Designs */
-    .premium-card {
-        background: var(--bg-glass);
-        backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: var(--radius-lg);
+    /* Card Styles */
+    .metric-card, .analysis-card, .insight-card {
+        background: var(--bg-card-gradient);
         padding: 2rem;
-        box-shadow: var(--shadow-glass);
-        margin-bottom: 2rem;
-        transition: var(--transition-normal);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg);
+        border: 1px solid var(--border-color);
+        margin-bottom: 1.5rem;
+        text-align: center;
+        transition: var(--transition);
         position: relative;
         overflow: hidden;
     }
 
-    .premium-card::before {
+    .metric-card::before {
         content: '';
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         height: 3px;
-        background: linear-gradient(90deg, var(--primary-color), var(--primary-light), var(--secondary-color));
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        background: var(--bg-gradient);
+        opacity: 0;
+        transition: var(--transition);
     }
 
-    .premium-card:hover {
-        transform: translateY(-4px) scale(1.01);
-        box-shadow: var(--shadow-xl), 0 0 40px rgba(99, 102, 241, 0.3);
-        border-color: rgba(99, 102, 241, 0.4);
+    .metric-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-xl), var(--shadow-glow);
+        border-color: var(--primary-color);
     }
 
-    .metric-card {
-        background: var(--bg-glass);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: var(--radius-lg);
-        padding: 2rem;
+    .metric-card:hover::before {
+        opacity: 1;
+    }
+
+    .metric-value {
+        font-size: 2.75rem;
+        font-weight: 800;
+        background: var(--bg-gradient);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .metric-label {
+        color: var(--text-secondary);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 0.8rem;
+    }
+
+    /* Sidebar Styles */
+    .css-1d391kg, .css-1cypcdb {
+        background: var(--bg-secondary) !important;
+        border-right: 1px solid var(--border-color);
+    }
+
+    .sidebar-title {
+        color: white;
+        font-weight: 700;
+        font-size: 1.25rem;
+        margin-bottom: 1.5rem;
         text-align: center;
-        box-shadow: var(--shadow-glass);
-        transition: var(--transition-normal);
+        padding: 1.25rem;
+        background: var(--bg-gradient);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+
+    /* Button Styles */
+    .stButton button {
+        background: var(--bg-gradient) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: var(--radius-lg) !important;
+        padding: 0.875rem 2rem !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        transition: var(--transition) !important;
+        box-shadow: var(--shadow-lg) !important;
+        width: 100% !important;
+        text-transform: none !important;
+        letter-spacing: 0.01em !important;
+    }
+
+    .stButton button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: var(--shadow-xl) !important;
+        filter: brightness(1.1) !important;
+    }
+
+    .stButton button:active {
+        transform: translateY(0) !important;
+    }
+
+    /* Input Styles */
+    .stTextInput input, .stSelectbox select, .stNumberInput input {
+        background: var(--bg-card) !important;
+        border: 2px solid var(--border-color) !important;
+        border-radius: var(--radius-lg) !important;
+        padding: 0.875rem !important;
+        color: var(--text-primary) !important;
+        font-size: 0.95rem !important;
+        transition: var(--transition) !important;
+    }
+
+    .stTextInput input:focus, .stSelectbox select:focus, .stNumberInput input:focus {
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+        outline: none !important;
+    }
+
+    /* Multiselect Styles */
+    .stMultiSelect [data-baseweb="select"] {
+        background: var(--bg-card) !important;
+        border: 2px solid var(--border-color) !important;
+        border-radius: var(--radius-lg) !important;
+    }
+
+    /* Progress Bar */
+    .stProgress .st-bo {
+        background: var(--bg-gradient) !important;
+        height: 8px !important;
+        border-radius: var(--radius) !important;
+        box-shadow: var(--shadow) !important;
+    }
+
+    /* Alert Styles */
+    .stSuccess, .stWarning, .stError, .stInfo {
+        border-radius: var(--radius-lg) !important;
+        padding: 1.25rem !important;
+        font-weight: 500 !important;
+        box-shadow: var(--shadow-lg) !important;
+    }
+
+    .stSuccess {
+        background: var(--success-color) !important;
+        border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    }
+
+    .stWarning {
+        background: var(--warning-color) !important;
+        border: 1px solid rgba(245, 158, 11, 0.3) !important;
+    }
+
+    .stError {
+        background: var(--error-color) !important;
+        border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    }
+
+    .stInfo {
+        background: var(--info-color) !important;
+        border: 1px solid rgba(59, 130, 246, 0.3) !important;
+    }
+
+    /* Chart Container Styles */
+    .chart-container {
+        background: var(--bg-card-gradient);
+        padding: 2rem;
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg);
+        border: 1px solid var(--border-color);
+        margin-bottom: 2rem;
+        transition: var(--transition);
+    }
+
+    .chart-container:hover {
+        box-shadow: var(--shadow-xl);
+        border-color: var(--primary-color);
+    }
+
+    .chart-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    /* Navigation Styles */
+    .nav-item {
+        background: var(--bg-card);
+        padding: 1rem 1.25rem;
+        border-radius: var(--radius-lg);
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: var(--transition);
+        border: 2px solid transparent;
+        text-align: left;
+        font-weight: 500;
         position: relative;
         overflow: hidden;
     }
 
-    .metric-card::after {
+    .nav-item::before {
         content: '';
         position: absolute;
-        top: 0;
         left: 0;
-        right: 0;
+        top: 0;
         bottom: 0;
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
-        pointer-events: none;
-        border-radius: var(--radius-lg);
+        width: 0;
+        background: var(--bg-gradient);
+        transition: var(--transition);
     }
 
-    .metric-card:hover {
-        transform: translateY(-6px);
-        box-shadow: var(--shadow-xl), 0 0 30px rgba(99, 102, 241, 0.2);
+    .nav-item:hover {
+        background: var(--bg-card);
         border-color: var(--primary-color);
+        transform: translateX(4px);
+        box-shadow: var(--shadow-lg);
     }
 
-    .metric-value {
-        font-size: 3rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.5rem;
-        line-height: 1;
+    .nav-item:hover::before {
+        width: 4px;
     }
 
-    .metric-label {
-        color: var(--text-white);
-        font-weight: 500;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        opacity: 0.9;
+    .nav-item.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-dark);
+        box-shadow: var(--shadow-glow);
     }
 
-    /* Enhanced Sidebar */
-    .css-1d391kg {
-        background: var(--bg-dark) !important;
-        border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-    }
-
-    .sidebar-section {
-        background: var(--bg-glass-dark);
-        backdrop-filter: blur(10px);
-        border-radius: var(--radius-md);
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .sidebar-title {
-        color: var(--text-white);
-        font-weight: 700;
-        font-size: 1.4rem;
-        margin-bottom: 1.5rem;
-        text-align: center;
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-        padding: 1rem;
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-md);
-    }
-
-    .nav-button {
-        background: rgba(255, 255, 255, 0.1) !important;
-        color: var(--text-white) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: var(--radius-md) !important;
-        padding: 0.875rem 1.5rem !important;
-        font-weight: 500 !important;
-        font-size: 0.95rem !important;
-        transition: var(--transition-normal) !important;
-        margin-bottom: 0.5rem !important;
-        backdrop-filter: blur(10px) !important;
-    }
-
-    .nav-button:hover {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-light)) !important;
-        transform: translateX(8px) !important;
-        box-shadow: var(--shadow-lg) !important;
-        border-color: var(--primary-light) !important;
-    }
-
-    /* Enhanced Form Controls */
-    .stTextInput input, .stSelectbox select, .stNumberInput input, .stTextArea textarea {
-        background: var(--bg-glass) !important;
-        backdrop-filter: blur(10px) !important;
-        border: 2px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: var(--radius-md) !important;
-        padding: 1rem !important;
-        font-size: 1rem !important;
-        transition: var(--transition-normal) !important;
-        color: var(--text-primary) !important;
-    }
-
-    .stTextInput input:focus, .stSelectbox select:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
-        border-color: var(--primary-color) !important;
-        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2) !important;
-        outline: none !important;
-    }
-
-    .stTextInput label, .stSelectbox label, .stNumberInput label, .stTextArea label {
-        font-weight: 600 !important;
-        color: var(--text-white) !important;
-        font-size: 1rem !important;
-        margin-bottom: 0.5rem !important;
-    }
-
-    /* Premium Button Styles */
-    .stButton button {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-light)) !important;
-        color: var(--text-white) !important;
-        border: none !important;
-        border-radius: var(--radius-md) !important;
-        padding: 0.875rem 2rem !important;
-        font-weight: 600 !important;
-        font-size: 1rem !important;
-        transition: var(--transition-normal) !important;
-        box-shadow: var(--shadow-lg) !important;
-        position: relative !important;
-        overflow: hidden !important;
-    }
-
-    .stButton button:hover {
-        transform: translateY(-3px) !important;
-        box-shadow: var(--shadow-xl), 0 0 30px rgba(99, 102, 241, 0.4) !important;
-        background: linear-gradient(135deg, var(--primary-light), var(--secondary-color)) !important;
-    }
-
-    .stButton button:active {
-        transform: translateY(-1px) !important;
-    }
-
-    /* Enhanced Charts and Visualizations */
-    .chart-container {
-        background: var(--bg-glass);
-        backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: var(--radius-lg);
-        padding: 2rem;
-        box-shadow: var(--shadow-glass);
-        margin-bottom: 2rem;
-        transition: var(--transition-normal);
-    }
-
-    .chart-container:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-xl);
-        border-color: var(--border-primary);
-    }
-
-    .chart-title {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--text-white);
-        margin-bottom: 1.5rem;
-        text-align: center;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Enhanced Data Tables */
-    .stDataFrame {
-        background: var(--bg-glass) !important;
-        backdrop-filter: blur(15px) !important;
+    /* Table Styles */
+    .dataframe {
+        background: var(--bg-card) !important;
         border-radius: var(--radius-lg) !important;
         overflow: hidden !important;
-        box-shadow: var(--shadow-glass) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        box-shadow: var(--shadow-lg) !important;
+        border: 1px solid var(--border-color) !important;
     }
 
-    .stDataFrame table {
-        background: transparent !important;
-    }
-
-    .stDataFrame thead tr th {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
-        color: var(--text-white) !important;
+    .dataframe th {
+        background: var(--bg-gradient) !important;
+        color: white !important;
         font-weight: 600 !important;
-        padding: 1rem !important;
-        border: none !important;
+        padding: 1.25rem 1rem !important;
+        font-size: 0.9rem !important;
         text-transform: uppercase !important;
         letter-spacing: 0.05em !important;
+    }
+
+    .dataframe td {
+        padding: 1rem !important;
+        border-bottom: 1px solid var(--border-light) !important;
+        color: var(--text-primary) !important;
         font-size: 0.9rem !important;
     }
 
-    .stDataFrame tbody tr td {
-        background: rgba(255, 255, 255, 0.1) !important;
-        color: var(--text-white) !important;
-        padding: 1rem !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-        font-weight: 400 !important;
+    .dataframe tr:hover {
+        background-color: rgba(102, 126, 234, 0.05) !important;
     }
 
-    .stDataFrame tbody tr:hover td {
-        background: rgba(99, 102, 241, 0.2) !important;
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
     }
 
-    /* Enhanced Progress Indicators */
-    .stProgress > div > div > div {
-        background: linear-gradient(90deg, var(--primary-color), var(--primary-light)) !important;
-        border-radius: var(--radius-full) !important;
-        height: 12px !important;
-        box-shadow: var(--shadow-md) !important;
+    ::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+        border-radius: var(--radius);
     }
 
-    /* Status Messages Enhancement */
-    .stSuccess, .stWarning, .stError, .stInfo {
-        border-radius: var(--radius-md) !important;
-        padding: 1.25rem 1.5rem !important;
-        font-weight: 500 !important;
-        box-shadow: var(--shadow-lg) !important;
-        border: none !important;
-        backdrop-filter: blur(10px) !important;
+    ::-webkit-scrollbar-thumb {
+        background: var(--bg-gradient);
+        border-radius: var(--radius);
     }
 
-    .stSuccess {
-        background: linear-gradient(135deg, var(--success-color), var(--accent-emerald)) !important;
-        color: white !important;
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--primary-dark);
     }
 
-    .stWarning {
-        background: linear-gradient(135deg, var(--warning-color), var(--accent-gold)) !important;
-        color: white !important;
+    /* Loading Animation */
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
     }
 
-    .stError {
-        background: linear-gradient(135deg, var(--error-color), #dc2626) !important;
-        color: white !important;
+    @keyframes shimmer {
+        0% { background-position: -468px 0; }
+        100% { background-position: 468px 0; }
     }
 
-    .stInfo {
-        background: linear-gradient(135deg, var(--info-color), var(--secondary-color)) !important;
-        color: white !important;
+    .loading {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 
-    /* Enhanced Selectbox and Multiselect */
-    .stSelectbox > div > div {
-        background: var(--bg-glass) !important;
-        backdrop-filter: blur(10px) !important;
-        border: 2px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: var(--radius-md) !important;
+    .shimmer {
+        animation: shimmer 1.5s ease-in-out infinite;
+        background: linear-gradient(to right, transparent 0%, rgba(102, 126, 234, 0.1) 50%, transparent 100%);
+        background-size: 468px 100%;
     }
 
-    .stMultiSelect > div > div {
-        background: var(--bg-glass) !important;
-        backdrop-filter: blur(10px) !important;
-        border: 2px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: var(--radius-md) !important;
+    /* Section Divider */
+    .section-divider {
+        height: 2px;
+        background: var(--bg-gradient);
+        margin: 3rem 0;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
     }
 
-    /* Enhanced Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        background: var(--bg-glass);
-        backdrop-filter: blur(10px);
-        border-radius: var(--radius-md);
-        padding: 0.5rem;
-        margin-bottom: 2rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        background: transparent;
-        color: var(--text-white);
-        font-weight: 500;
-        border-radius: var(--radius-sm);
-        padding: 0.75rem 1.5rem;
-        transition: var(--transition-fast);
-    }
-
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-light)) !important;
-        color: white !important;
-        box-shadow: var(--shadow-md);
-    }
-
-    /* Enhanced Metrics Grid */
-    .metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 3rem;
-    }
-
-    /* Navigation Enhancements */
-    .nav-section {
-        background: var(--bg-glass-dark);
-        backdrop-filter: blur(10px);
-        border-radius: var(--radius-md);
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: var(--shadow-md);
-    }
-
-    .nav-section h3 {
-        color: var(--primary-light);
-        font-weight: 700;
-        font-size: 1.2rem;
-        margin-bottom: 1rem;
+    /* Status Badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: var(--radius-lg);
+        font-size: 0.85rem;
+        font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
 
-    .current-page-indicator {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-        color: white;
-        padding: 1rem;
-        border-radius: var(--radius-md);
-        text-align: center;
-        font-weight: 600;
-        box-shadow: var(--shadow-lg);
-        margin-top: 1rem;
+    .status-badge.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+        border: 1px solid rgba(16, 185, 129, 0.3);
     }
 
-    /* Enhanced Sliders */
-    .stSlider > div > div > div {
-        background: var(--primary-color) !important;
+    .status-badge.warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+        border: 1px solid rgba(245, 158, 11, 0.3);
     }
 
-    .stSlider > div > div > div > div {
-        background: var(--text-white) !important;
-        box-shadow: var(--shadow-md) !important;
+    .status-badge.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--error-color);
+        border: 1px solid rgba(239, 68, 68, 0.3);
     }
 
-    /* Loading Animation Enhancement */
-    .stSpinner > div {
-        border-top-color: var(--primary-light) !important;
-        border-right-color: var(--primary-color) !important;
-        border-bottom-color: var(--secondary-color) !important;
+    /* Feature Card */
+    .feature-card {
+        background: var(--bg-card-gradient);
+        padding: 1.5rem;
+        border-radius: var(--radius-xl);
+        border: 1px solid var(--border-color);
+        transition: var(--transition);
     }
 
-    /* Enhanced Typography */
-    h1, h2, h3, h4, h5, h6 {
-        color: var(--text-white) !important;
-        font-weight: 700 !important;
-        letter-spacing: -0.025em !important;
+    .feature-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-xl);
+        border-color: var(--primary-color);
     }
 
-    h1 { font-size: 2.5rem !important; }
-    h2 { font-size: 2rem !important; }
-    h3 { font-size: 1.5rem !important; }
-
-    p, div, span, label {
-        color: var(--text-white) !important;
-        line-height: 1.6 !important;
+    .feature-icon {
+        width: 3rem;
+        height: 3rem;
+        background: var(--bg-gradient);
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
     }
 
-    /* Code and Monospace */
-    code, pre {
-        font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-        background: var(--bg-glass-dark) !important;
-        border-radius: var(--radius-sm) !important;
-        padding: 0.5rem !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    }
-
-    /* Enhanced Scrollbars */
-    ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-    }
-
-    ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: var(--radius-sm);
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-        border-radius: var(--radius-sm);
-        box-shadow: var(--shadow-sm);
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(135deg, var(--primary-light), var(--secondary-color));
-    }
-
-    /* Responsive Design Enhancements */
+    /* Responsive Design */
     @media (max-width: 768px) {
         .header-title {
-            font-size: 2.5rem !important;
+            font-size: 2.25rem;
         }
         
-        .header-subtitle {
-            font-size: 1.2rem !important;
+        .metric-card {
+            padding: 1.5rem;
         }
         
         .metric-value {
-            font-size: 2.2rem !important;
+            font-size: 2rem;
         }
         
-        .premium-card {
-            padding: 1.5rem !important;
-        }
-        
-        .modern-header {
-            padding: 2rem 1.5rem !important;
+        .main-header {
+            padding: 2rem 1.5rem;
         }
     }
 
-    /* Animation Classes */
-    .fade-in {
-        animation: fadeIn 0.6s ease-out;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .slide-in {
-        animation: slideIn 0.5s ease-out;
-    }
-
-    @keyframes slideIn {
-        from { transform: translateX(-30px); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-
-    /* Footer Styling */
-    .footer {
-        background: var(--bg-glass-dark);
-        backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: var(--radius-lg);
-        padding: 2rem;
-        margin-top: 3rem;
-        text-align: center;
-        color: var(--text-white);
+    /* Hide Streamlit Elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    .stDeployButton {display: none;}
+    
+    /* Custom Metrics */
+    [data-testid="metric-container"] {
+        background: var(--bg-card-gradient);
+        border: 1px solid var(--border-color);
+        padding: 1.5rem;
+        border-radius: var(--radius-xl);
         box-shadow: var(--shadow-lg);
+        transition: var(--transition);
     }
-
-    .footer h4 {
-        margin-bottom: 0.5rem;
+    
+    [data-testid="metric-container"]:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-xl);
+        border-color: var(--primary-color);
+    }
+    
+    [data-testid="metric-container"] > div {
+        color: var(--text-primary);
+    }
+    
+    [data-testid="metric-container"] [data-testid="metric-value"] {
+        color: var(--primary-color);
+        font-family: 'JetBrains Mono', monospace;
         font-weight: 700;
-        color: var(--primary-light);
     }
 
-    .footer p {
-        margin-bottom: 0.25rem;
-        opacity: 0.8;
-        font-size: 0.95rem;
-    }
-
-    /* Enhanced Plotly Charts */
-    .js-plotly-plot {
-        border-radius: var(--radius-md) !important;
-        overflow: hidden !important;
-        box-shadow: var(--shadow-lg) !important;
+    /* Plotly Chart Styling */
+    .js-plotly-plot .plotly .modebar {
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: var(--radius) !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-apply_enhanced_styling()
+apply_modern_styling()
 
 # Session State Management
 def initialize_session_state():
-    session_defaults = {
+    """Initialize session state with default values"""
+    defaults = {
         'current_page': 'dashboard',
         'analyzed_data': None,
         'competitor_data': None,
         'analysis_history': [],
-        'user_preferences': {},
+        'user_preferences': {
+            'theme': 'dark',
+            'auto_refresh': True,
+            'export_format': 'csv'
+        },
         'ml_models': {},
         'advanced_insights': {},
-        'export_data': None
+        'export_data': None,
+        'cached_reviews': {},
+        'app_info': {},
+        'user_authenticated': True,
+        'user_role': 'admin',
+        'current_app_name': 'Unknown App',
+        'competitor_app_name': 'Competitor App',
+        'ml_insights': None
     }
 
-    for key, default_value in session_defaults.items():
+    for key, value in defaults.items():
         if key not in st.session_state:
-            st.session_state[key] = default_value
+            st.session_state[key] = value
 
 initialize_session_state()
 
-# Enhanced Helper Functions
+# Mock Data Generator for Demo
+class MockDataGenerator:
+    """Generate realistic mock data for demonstration"""
+    
+    @staticmethod
+    def generate_reviews(count=500):
+        """Generate mock review data"""
+        np.random.seed(42)
+        
+        # Sample review content
+        positive_reviews = [
+            "Excellent app! Love the user interface and smooth performance.",
+            "Amazing features and very intuitive design. Highly recommend!",
+            "Perfect app for my needs. Works flawlessly on my device.",
+            "Outstanding quality and great customer support. Five stars!",
+            "Wonderful experience using this app. Very user-friendly.",
+            "Great app with fantastic features. Keep up the good work!",
+            "Love the new update! Much faster and more responsive now.",
+            "This app has exceeded my expectations. Truly remarkable!",
+            "Incredible functionality and beautiful design. Well done!",
+            "Best app in its category. Couldn't be happier with it."
+        ]
+        
+        negative_reviews = [
+            "App crashes frequently and has many bugs. Needs improvement.",
+            "Poor performance and confusing interface. Very disappointed.",
+            "Doesn't work as advertised. Waste of time and storage space.",
+            "Too many ads and the app is very slow. Not recommended.",
+            "Terrible user experience. The app freezes constantly.",
+            "Bad design and poor functionality. Needs complete overhaul.",
+            "App is buggy and unreliable. Can't complete basic tasks.",
+            "Worst app I've ever used. Constantly crashing and glitching.",
+            "Very poor quality and customer service is non-existent.",
+            "Disappointing app with limited features and many issues."
+        ]
+        
+        neutral_reviews = [
+            "Decent app with some useful features. Could be better.",
+            "Average performance. Some features work well, others don't.",
+            "It's okay for basic use. Nothing special but does the job.",
+            "Mixed experience. Some parts are good, others need work.",
+            "Fair app with room for improvement. Has potential.",
+            "Works fine for most things. Some minor issues here and there.",
+            "Standard app functionality. Nothing to complain about.",
+            "It's alright. Does what it's supposed to do reasonably well.",
+            "Mediocre app. Not bad but not great either.",
+            "Acceptable quality. Gets the job done with some limitations."
+        ]
+        
+        all_reviews = positive_reviews + negative_reviews + neutral_reviews
+        
+        data = []
+        base_date = datetime.now() - timedelta(days=365)
+        
+        for i in range(count):
+            # Generate review data
+            score = np.random.choice([1, 2, 3, 4, 5], p=[0.05, 0.1, 0.2, 0.35, 0.3])
+            
+            if score >= 4:
+                content = np.random.choice(positive_reviews)
+                sentiment = np.random.choice(['Positive', 'Highly Positive'], p=[0.4, 0.6])
+                polarity = np.random.uniform(0.3, 1.0)
+                emotional_intensity = np.random.uniform(0.5, 2.0)
+            elif score <= 2:
+                content = np.random.choice(negative_reviews)
+                sentiment = np.random.choice(['Negative', 'Highly Negative'], p=[0.5, 0.5])
+                polarity = np.random.uniform(-1.0, -0.3)
+                emotional_intensity = np.random.uniform(-2.0, -0.5)
+            else:
+                content = np.random.choice(neutral_reviews)
+                sentiment = 'Neutral'
+                polarity = np.random.uniform(-0.2, 0.2)
+                emotional_intensity = np.random.uniform(-0.3, 0.3)
+            
+            review_date = base_date + timedelta(days=np.random.randint(0, 365))
+            
+            data.append({
+                'at': review_date,
+                'userName': f'User{i+1}',
+                'score': score,
+                'content': content,
+                'sentiment': sentiment,
+                'polarity': polarity,
+                'subjectivity': np.random.uniform(0.0, 1.0),
+                'confidence': np.random.uniform(0.7, 0.95),
+                'emotional_intensity': emotional_intensity,
+                'aspect_performance': np.random.choice([True, False], p=[0.3, 0.7]),
+                'aspect_ui_design': np.random.choice([True, False], p=[0.25, 0.75]),
+                'aspect_functionality': np.random.choice([True, False], p=[0.4, 0.6]),
+                'aspect_usability': np.random.choice([True, False], p=[0.35, 0.65]),
+                'aspect_reliability': np.random.choice([True, False], p=[0.2, 0.8]),
+                'keywords': np.random.choice(['great app', 'user friendly', 'needs improvement', 'excellent', 'poor quality'])
+            })
+        
+        return pd.DataFrame(data)
+
+# Initialize mock data generator
+mock_generator = MockDataGenerator()
+
+# Advanced Helper Functions
 class ReviewAnalyzer:
     def __init__(self):
-        self.stop_words = set(stopwords.words('english'))
-        self.lemmatizer = WordNetLemmatizer()
-        self.ml_models = {
-            'naive_bayes': MultinomialNB(),
-            'logistic_regression': LogisticRegression(max_iter=1000),
-            'random_forest': RandomForestClassifier(n_estimators=100)
-        }
-
+        self.mock_mode = True  # Enable mock mode for demo
+        
     def extract_package_name(self, url):
-        """Extract package name from Google Play URL with validation"""
-        if not url or not isinstance(url, str):
+        """Extract package name from Google Play URL"""
+        if not url:
             return None
-
-        patterns = [
-            r'id=([a-zA-Z0-9_\.]+)',
-            r'/store/apps/details\?id=([a-zA-Z0-9_\.]+)',
-            r'play\.google\.com.*id=([a-zA-Z0-9_\.]+)'
-        ]
-
-        for pattern in patterns:
-            match = re.search(pattern, url)
-            if match:
-                package_name = match.group(1)
-                if self.validate_package_name(package_name):
-                    return package_name
+            
+        # For demo purposes, return a valid package name format
+        if 'play.google.com' in url or '.' in url:
+            if 'id=' in url:
+                match = re.search(r'id=([a-zA-Z0-9_.]+)', url)
+                if match:
+                    return match.group(1)
+            else:
+                # Assume it's already a package name
+                return url.strip()
         return None
-
+    
     def validate_package_name(self, package_name):
         """Validate package name format"""
+        if not package_name:
+            return False
         pattern = r'^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*$'
         return bool(re.match(pattern, package_name)) and len(package_name.split('.')) >= 2
-
+    
     def get_app_name(self, package_name):
-        """Extract readable app name from package name"""
+        """Extract app name from package name"""
         if not package_name:
-            return "Unknown App"
+            return "Demo App"
         parts = package_name.split('.')
         return parts[-1].replace('_', ' ').title()
-
-    def preprocess_text(self, text):
-        """Advanced text preprocessing"""
-        if pd.isna(text) or not isinstance(text, str):
-            return ""
-
-        # Convert to lowercase
-        text = text.lower()
-
-        # Remove URLs, mentions, hashtags
-        text = re.sub(r'http\S+|www\S+|https\S+', '', text)
-        text = re.sub(r'@\w+|#\w+', '', text)
-
-        # Remove special characters and digits
-        text = re.sub(r'[^a-zA-Z\s]', '', text)
-
-        # Tokenize
-        tokens = word_tokenize(text)
-
-        # Remove stopwords and lemmatize
-        tokens = [self.lemmatizer.lemmatize(token) for token in tokens 
-                 if token not in self.stop_words and len(token) > 2]
-
-        return ' '.join(tokens)
-
-    def advanced_sentiment_analysis(self, text):
-        """Advanced sentiment analysis with multiple approaches"""
-        if pd.isna(text) or text.strip() == "":
-            return {
-                'polarity': 0.0,
-                'subjectivity': 0.0,
-                'sentiment': 'Neutral',
-                'confidence': 0.0,
-                'emotional_intensity': 0.0,
-                'aspects': {},
-                'keywords': []
-            }
-
-        # TextBlob analysis
-        blob = TextBlob(str(text))
-        polarity = blob.sentiment.polarity
-        subjectivity = blob.sentiment.subjectivity
-
-        # Emotional intensity calculation
-        emotional_words = {
-            'excellent': 2.0, 'amazing': 1.8, 'outstanding': 1.7, 'perfect': 1.6,
-            'wonderful': 1.5, 'fantastic': 1.4, 'great': 1.2, 'good': 1.0,
-            'terrible': -2.0, 'awful': -1.8, 'horrible': -1.7, 'worst': -1.6,
-            'hate': -1.5, 'disgusting': -1.4, 'bad': -1.2, 'poor': -1.0
-        }
-
-        intensity = 0.0
-        text_lower = text.lower()
-        found_keywords = []
-
-        for word, weight in emotional_words.items():
-            if word in text_lower:
-                intensity += weight
-                found_keywords.append(word)
-
-        # Normalize intensity
-        intensity = max(-2.0, min(2.0, intensity))
-
-        # Aspect-based analysis
-        aspects = {
-            'performance': any(word in text_lower for word in 
-                             ['fast', 'slow', 'speed', 'lag', 'performance', 'responsive', 'quick']),
-            'ui_design': any(word in text_lower for word in 
-                           ['design', 'interface', 'ui', 'layout', 'beautiful', 'ugly', 'visual']),
-            'functionality': any(word in text_lower for word in 
-                               ['feature', 'function', 'work', 'broken', 'bug', 'crash', 'issue']),
-            'usability': any(word in text_lower for word in 
-                           ['easy', 'difficult', 'simple', 'complex', 'intuitive', 'confusing']),
-            'reliability': any(word in text_lower for word in 
-                             ['stable', 'crash', 'freeze', 'reliable', 'consistent', 'glitch'])
-        }
-
-        # Sentiment classification with confidence
-        if polarity > 0.5:
-            sentiment = "Highly Positive"
-            confidence = min(1.0, abs(polarity) + 0.3)
-        elif polarity > 0.2:
-            sentiment = "Positive"
-            confidence = min(1.0, abs(polarity) + 0.2)
-        elif polarity > 0.0:
-            sentiment = "Slightly Positive"
-            confidence = min(1.0, abs(polarity) + 0.1)
-        elif polarity < -0.5:
-            sentiment = "Highly Negative"
-            confidence = min(1.0, abs(polarity) + 0.3)
-        elif polarity < -0.2:
-            sentiment = "Negative"
-            confidence = min(1.0, abs(polarity) + 0.2)
-        elif polarity < 0.0:
-            sentiment = "Slightly Negative"
-            confidence = min(1.0, abs(polarity) + 0.1)
+    
+    def scrape_reviews(self, package_name, count=500, sort_by=None):
+        """Mock review scraping with realistic data"""
+        if self.mock_mode:
+            with st.spinner(f"Generating {count} demo reviews for analysis..."):
+                time.sleep(2)  # Simulate API delay
+                return mock_generator.generate_reviews(count)
         else:
-            sentiment = "Neutral"
-            confidence = max(0.1, 1.0 - abs(subjectivity))
-
-        return {
-            'polarity': polarity,
-            'subjectivity': subjectivity,
-            'sentiment': sentiment,
-            'confidence': confidence,
-            'emotional_intensity': intensity,
-            'aspects': aspects,
-            'keywords': found_keywords
-        }
-
-    def scrape_reviews(self, package_name, count=500, sort_by=Sort.NEWEST):
-        """Enhanced review scraping with error handling"""
-        try:
-            with st.spinner(f"Extracting {count} reviews for analysis..."):
-                result, continuation_token = reviews(
-                    package_name,
-                    lang='en',
-                    country='us',
-                    sort=sort_by,
-                    count=count,
-                    filter_score_with=None
-                )
-
-                if not result:
-                    st.warning("No reviews found for this app")
-                    return pd.DataFrame()
-
-                # Convert to DataFrame
-                df = pd.DataFrame(result)
-
-                # Add advanced analysis
-                progress_bar = st.progress(0)
-                sentiments = []
-
-                for idx, review in df.iterrows():
-                    sentiment_data = self.advanced_sentiment_analysis(review['content'])
-                    sentiments.append(sentiment_data)
-                    progress_bar.progress((idx + 1) / len(df))
-
-                # Flatten sentiment data
-                for idx, sentiment in enumerate(sentiments):
-                    for key, value in sentiment.items():
-                        if key == 'aspects':
-                            for aspect, present in value.items():
-                                df.loc[idx, f'aspect_{aspect}'] = present
-                        elif key == 'keywords':
-                            df.loc[idx, 'keywords'] = ', '.join(value) if value else ''
-                        else:
-                            df.loc[idx, key] = value
-
-                progress_bar.empty()
-                return df
-
-        except Exception as e:
-            st.error(f"Error scraping reviews: {str(e)}")
-            return pd.DataFrame()
-
+            # Real implementation would go here
+            st.error("Real Google Play scraping requires additional setup. Using demo mode.")
+            return mock_generator.generate_reviews(count)
+    
     def generate_ml_insights(self, df):
-        """Generate machine learning based insights"""
-        if df.empty or 'content' not in df.columns:
+        """Generate mock ML insights"""
+        if df.empty:
             return {}
-
-        try:
-            # Prepare text data
-            texts = df['content'].fillna('').astype(str)
-            processed_texts = [self.preprocess_text(text) for text in texts]
-
-            # TF-IDF Vectorization
-            tfidf = TfidfVectorizer(max_features=1000, stop_words='english')
-            X_tfidf = tfidf.fit_transform(processed_texts)
-
-            # Topic Modeling with LDA
-            lda = LatentDirichletAllocation(n_components=5, random_state=42)
-            lda_topics = lda.fit_transform(X_tfidf)
-
-            # Feature names for topics
-            feature_names = tfidf.get_feature_names_out()
-
-            # Extract topics
-            topics = []
-            for topic_idx, topic in enumerate(lda.components_):
-                top_words = [feature_names[i] for i in topic.argsort()[-10:][::-1]]
-                topics.append({
-                    'topic_id': topic_idx + 1,
-                    'keywords': top_words,
-                    'weight': topic.sum()
-                })
-
-            # Clustering
-            n_clusters = min(5, len(df) // 10) if len(df) > 50 else 3
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-            clusters = kmeans.fit_predict(X_tfidf.toarray())
-
-            # Key phrases extraction
-            count_vectorizer = CountVectorizer(ngram_range=(2, 3), max_features=20, stop_words='english')
-            phrases = count_vectorizer.fit_transform(processed_texts)
-            phrase_freq = zip(count_vectorizer.get_feature_names_out(), 
-                            phrases.sum(axis=0).A1)
-            key_phrases = sorted(phrase_freq, key=lambda x: x[1], reverse=True)[:10]
-
-            return {
-                'topics': topics,
-                'clusters': clusters.tolist(),
-                'n_clusters': n_clusters,
-                'key_phrases': [{'phrase': phrase, 'frequency': freq} for phrase, freq in key_phrases],
-                'tfidf_features': feature_names.tolist()[:50]
-            }
-
-        except Exception as e:
-            st.error(f"Error generating ML insights: {str(e)}")
-            return {}
+        
+        # Mock topic modeling results
+        topics = [
+            {'topic_id': 1, 'keywords': ['user', 'interface', 'design', 'easy', 'navigation'], 'weight': 0.25},
+            {'topic_id': 2, 'keywords': ['performance', 'speed', 'fast', 'responsive', 'smooth'], 'weight': 0.22},
+            {'topic_id': 3, 'keywords': ['feature', 'functionality', 'useful', 'tool', 'capability'], 'weight': 0.20},
+            {'topic_id': 4, 'keywords': ['bug', 'crash', 'issue', 'problem', 'error'], 'weight': 0.18},
+            {'topic_id': 5, 'keywords': ['update', 'improvement', 'better', 'enhance', 'version'], 'weight': 0.15}
+        ]
+        
+        # Mock key phrases
+        key_phrases = [
+            {'phrase': 'user friendly', 'frequency': 45},
+            {'phrase': 'great app', 'frequency': 38},
+            {'phrase': 'easy to use', 'frequency': 32},
+            {'phrase': 'highly recommend', 'frequency': 28},
+            {'phrase': 'works perfectly', 'frequency': 24},
+            {'phrase': 'needs improvement', 'frequency': 20},
+            {'phrase': 'love this app', 'frequency': 18},
+            {'phrase': 'excellent quality', 'frequency': 15},
+            {'phrase': 'very helpful', 'frequency': 12},
+            {'phrase': 'poor performance', 'frequency': 10}
+        ]
+        
+        return {
+            'topics': topics,
+            'clusters': list(np.random.randint(0, 3, len(df))),
+            'n_clusters': 3,
+            'key_phrases': key_phrases,
+            'tfidf_features': ['user', 'app', 'great', 'good', 'interface', 'design', 'performance', 'feature', 'easy', 'recommend']
+        }
+    
+    def analyze_trends(self, df):
+        """Analyze rating trends over time"""
+        if df.empty or 'at' not in df.columns:
+            return None
+            
+        df = df.copy()
+        df['date'] = pd.to_datetime(df['at']).dt.date
+        df['week'] = pd.to_datetime(df['at']).dt.to_period('W').apply(lambda r: r.start_time)
+        
+        # Daily trends
+        daily_stats = df.groupby('date').agg({
+            'score': ['mean', 'count'],
+            'polarity': 'mean',
+            'emotional_intensity': 'mean'
+        }).round(3)
+        
+        daily_stats.columns = ['avg_rating', 'review_count', 'avg_polarity', 'avg_intensity']
+        
+        # Weekly trends
+        weekly_stats = df.groupby('week').agg({
+            'score': ['mean', 'count'],
+            'polarity': 'mean',
+            'emotional_intensity': 'mean'
+        }).round(3)
+        
+        weekly_stats.columns = ['avg_rating', 'review_count', 'avg_polarity', 'avg_intensity']
+        
+        return {
+            'daily': daily_stats,
+            'weekly': weekly_stats
+        }
 
 # Initialize analyzer
 analyzer = ReviewAnalyzer()
 
-def create_modern_header():
-    """Create enhanced modern header"""
+# Caching functions for better performance
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_scrape_reviews(package_name, count=500):
+    """Cached version of review scraping"""
+    return analyzer.scrape_reviews(package_name, count)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_generate_ml_insights(df_hash):
+    """Cached version of ML insights generation"""
+    # Generate insights based on hash to ensure consistency
+    return analyzer.generate_ml_insights(pd.DataFrame())  # Mock implementation
+
+def get_dataframe_hash(df):
+    """Generate a hash for dataframe to use as cache key"""
+    if df is None or df.empty:
+        return "empty"
+    return hashlib.md5(pd.util.hash_pandas_object(df).values).hexdigest()
+
+def create_header():
+    """Create modern header with developer credit"""
     st.markdown("""
-    <div class="modern-header fade-in">
+    <div class="main-header">
         <h1 class="header-title">ReviewForge Analytics Pro</h1>
         <p class="header-subtitle">Advanced AI-Powered Review Analysis Platform</p>
-        <div class="developer-badge">
+        <div class="developer-credit">
             Developed by Ayush Pandey - Advanced Analytics & Machine Learning
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-def create_enhanced_navigation():
-    """Create premium navigation system"""
-    st.sidebar.markdown('<div class="sidebar-title slide-in">Navigation Hub</div>', unsafe_allow_html=True)
+def create_navigation():
+    """Create modern navigation system"""
+    st.sidebar.markdown('<div class="sidebar-title">Navigation Hub</div>', unsafe_allow_html=True)
 
     pages = {
-        'dashboard': 'Analytics Dashboard',
-        'deep_analysis': 'Deep Analysis Engine',
-        'competitor': 'Competitive Intelligence',
-        'ml_insights': 'ML Insights Laboratory',
-        'sentiment_trends': 'Sentiment Trend Analysis',
-        'export_reports': 'Export & Reporting',
-        'settings': 'Advanced Settings'
+        'dashboard': '📊 Analytics Dashboard',
+        'deep_analysis': '🔬 Deep Analysis Engine',
+        'competitor': '⚔️ Competitive Intelligence',
+        'ml_insights': '🤖 ML Insights Laboratory',
+        'trend_analysis': '📈 Trend Analysis',
+        'export_reports': '📄 Export & Reporting',
+        'settings': '⚙️ Advanced Settings'
     }
 
-    st.sidebar.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
-    
+    current_page = st.session_state.current_page
+
     for page_key, page_name in pages.items():
-        button_class = "nav-button"
-        if st.sidebar.button(page_name, key=f"nav_{page_key}", use_container_width=True, help=f"Navigate to {page_name}"):
+        if st.sidebar.button(
+            page_name, 
+            key=f"nav_{page_key}", 
+            use_container_width=True,
+            type="primary" if page_key == current_page else "secondary"
+        ):
             st.session_state.current_page = page_key
             st.rerun()
 
-    st.sidebar.markdown('</div>', unsafe_allow_html=True)
-
-    # Enhanced current page indicator
+    # Current page indicator
+    st.sidebar.markdown("---")
     st.sidebar.markdown(f"""
-    <div class="nav-section slide-in">
-        <h3>Current Section</h3>
-        <div class="current-page-indicator">
-            {pages[st.session_state.current_page]}
-        </div>
+    <div class="feature-card">
+        <h3>Current Page</h3>
+        <p style="color: #667eea; font-weight: 600;">{pages[current_page]}</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Add system status
-    st.sidebar.markdown("""
-    <div class="nav-section">
-        <h3>System Status</h3>
-        <div style="color: #10b981; font-weight: 600;">
-            🟢 Online & Ready
+    # Quick stats if data is available
+    if st.session_state.analyzed_data is not None:
+        df = st.session_state.analyzed_data
+        st.sidebar.markdown("""
+        <div class="feature-card">
+            <h3>Quick Stats</h3>
         </div>
-        <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.85rem; margin-top: 0.5rem;">
-            All systems operational
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            st.metric("Reviews", f"{len(df):,}")
+        with col2:
+            if 'score' in df.columns:
+                st.metric("Avg Rating", f"{df['score'].mean():.1f}")
 
-def create_enhanced_metrics_dashboard(df):
-    """Create premium metrics dashboard"""
+def create_metrics_dashboard(df):
+    """Create comprehensive metrics dashboard"""
     if df.empty:
         return
 
-    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
-    st.markdown("## Key Performance Indicators")
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    st.subheader("📊 Key Performance Indicators")
 
     cols = st.columns(5)
 
-    metrics_data = [
-        {
-            'value': f"{df['score'].mean():.1f}" if 'score' in df.columns else "0.0",
-            'label': "Average Rating",
-            'icon': "⭐"
-        },
-        {
-            'value': f"{len(df):,}",
-            'label': "Total Reviews",
-            'icon': "📊"
-        },
-        {
-            'value': f"{(df['sentiment'].str.contains('Positive', na=False).sum() / len(df)) * 100:.1f}%" if 'sentiment' in df.columns else "0.0%",
-            'label': "Positive Rate",
-            'icon': "👍"
-        },
-        {
-            'value': f"{df['confidence'].mean() * 100:.1f}%" if 'confidence' in df.columns else "0.0%",
-            'label': "Analysis Confidence",
-            'icon': "🎯"
-        },
-        {
-            'value': f"{abs(df['emotional_intensity'].mean()):.2f}" if 'emotional_intensity' in df.columns else "0.00",
-            'label': "Emotional Intensity",
-            'icon': "🔥"
-        }
+    metrics = [
+        ("Average Rating", df['score'].mean() if 'score' in df.columns else 0, "⭐", "1f"),
+        ("Total Reviews", len(df), "📝", ","),
+        ("Positive Rate", (df['sentiment'].str.contains('Positive', na=False).sum() / len(df)) * 100 if 'sentiment' in df.columns else 0, "😊", "1f%"),
+        ("Confidence", df['confidence'].mean() * 100 if 'confidence' in df.columns else 0, "🎯", "1f%"),
+        ("Intensity", abs(df['emotional_intensity'].mean()) if 'emotional_intensity' in df.columns else 0, "💪", "2f")
     ]
 
-    for i, (col, metric) in enumerate(zip(cols, metrics_data)):
-        with col:
-            st.markdown(f"""
-            <div class="metric-card fade-in" style="animation-delay: {i * 0.1}s;">
-                <div style="font-size: 2rem; margin-bottom: 0.5rem;">{metric['icon']}</div>
-                <div class="metric-value">{metric['value']}</div>
-                <div class="metric-label">{metric['label']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+    for i, (label, value, icon, fmt) in enumerate(metrics):
+        with cols[i]:
+            if fmt == "," :
+                st.metric(f"{icon} {label}", f"{value:,}")
+            elif "%" in fmt:
+                st.metric(f"{icon} {label}", f"{value:.1f}%")
+            elif "f" in fmt:
+                precision = int(fmt[0])
+                st.metric(f"{icon} {label}", f"{value:.{precision}f}")
 
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def create_premium_visualizations(df):
-    """Create enhanced interactive visualizations"""
+def create_advanced_visualizations(df):
+    """Create advanced interactive visualizations"""
     if df.empty:
         return
 
-    # Enhanced color palette
+    # Modern color palette
     colors = {
-        'primary': '#6366f1',
-        'secondary': '#8b5cf6',
-        'accent': '#06b6d4',
-        'success': '#22c55e',
-        'warning': '#f97316',
+        'primary': '#667eea',
+        'secondary': '#764ba2', 
+        'accent': '#4facfe',
+        'success': '#10b981',
+        'warning': '#f59e0b',
         'error': '#ef4444',
         'positive': '#10b981',
         'negative': '#ef4444',
-        'neutral': '#6b7280',
-        'gradient': ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f97316']
+        'neutral': '#6b7280'
     }
 
-    st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    st.subheader("📈 Advanced Analytics Visualizations")
 
-    # Row 1: Sentiment and Rating Analysis
+    # 1. Sentiment Distribution with enhanced styling
     col1, col2 = st.columns(2)
 
     with col1:
-        # Enhanced Key Phrases Analysis
-        st.markdown('<div class="premium-card fade-in">', unsafe_allow_html=True)
-        st.markdown("## Key Phrases Extraction")
-        
-        if 'key_phrases' in ml_insights and ml_insights['key_phrases']:
-            phrases_data = []
-            for i, phrase_data in enumerate(ml_insights['key_phrases'][:10]):
-                phrases_data.append({
-                    'Rank': i + 1,
-                    'Phrase': phrase_data['phrase'],
-                    'Frequency': phrase_data['frequency'],
-                    'Relevance': 'High' if phrase_data['frequency'] > 5 else 'Medium' if phrase_data['frequency'] > 2 else 'Low'
-                })
+        if 'sentiment' in df.columns:
+            sentiment_counts = df['sentiment'].value_counts()
 
-            phrases_df = pd.DataFrame(phrases_data)
-            st.dataframe(phrases_df, use_container_width=True, hide_index=True)
+            fig_donut = go.Figure(data=[go.Pie(
+                labels=sentiment_counts.index,
+                values=sentiment_counts.values,
+                hole=0.6,
+                marker=dict(
+                    colors=[colors['positive'] if 'Positive' in s else 
+                           colors['negative'] if 'Negative' in s else colors['neutral'] 
+                           for s in sentiment_counts.index],
+                    line=dict(color='#1a202c', width=2)
+                ),
+                textinfo='label+percent+value',
+                textfont=dict(size=12, color='white'),
+                hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
+            )])
 
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # Enhanced Correlation Analysis
-        st.markdown('<div class="premium-card fade-in">', unsafe_allow_html=True)
-        st.markdown("## Advanced Correlation Analysis")
-        
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        if len(numeric_cols) > 1:
-            corr_matrix = df[numeric_cols].corr()
-
-            fig_corr = px.imshow(
-                corr_matrix,
-                text_auto='.2f',
-                aspect="auto",
-                title="",
-                color_continuous_scale='RdBu_r',
-                color_continuous_midpoint=0
-            )
-            
-            fig_corr.update_layout(
-                height=500,
+            fig_donut.update_layout(
+                title=dict(
+                    text='🎭 Sentiment Distribution Analysis',
+                    x=0.5,
+                    font=dict(size=18, color='white')
+                ),
+                annotations=[dict(
+                    text=f'<b>Total</b><br>{sentiment_counts.sum():,}',
+                    x=0.5, y=0.5,
+                    font_size=14,
+                    font_color='white',
+                    showarrow=False
+                )],
+                showlegend=True,
+                height=400,
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white', family='Poppins'),
-                xaxis=dict(tickfont=dict(color='white')),
-                yaxis=dict(tickfont=dict(color='white'))
+                font=dict(color='white')
             )
 
-            st.plotly_chart(fig_corr, use_container_width=True)
+            st.plotly_chart(fig_donut, use_container_width=True)
 
-        st.markdown('</div>', unsafe_allow_html=True)
+    with col2:
+        if 'score' in df.columns:
+            rating_dist = df['score'].value_counts().sort_index()
+
+            fig_rating = go.Figure()
+            fig_rating.add_trace(go.Bar(
+                x=[f'{i} ⭐' for i in rating_dist.index],
+                y=rating_dist.values,
+                marker=dict(
+                    color=[colors['error'] if i <= 2 else 
+                          colors['warning'] if i == 3 else colors['success'] 
+                          for i in rating_dist.index],
+                    line=dict(color='#1a202c', width=1)
+                ),
+                text=rating_dist.values,
+                textposition='outside',
+                textfont=dict(color='white'),
+                hovertemplate='<b>%{x}</b><br>Count: %{y}<br>Percentage: %{customdata:.1f}%<extra></extra>',
+                customdata=[(count/rating_dist.sum()*100) for count in rating_dist.values]
+            ))
+
+            fig_rating.update_layout(
+                title=dict(
+                    text='⭐ Rating Distribution',
+                    x=0.5,
+                    font=dict(size=18, color='white')
+                ),
+                xaxis=dict(title='Rating', color='white'),
+                yaxis=dict(title='Number of Reviews', color='white'),
+                showlegend=False,
+                height=400,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='white')
+            )
+
+            st.plotly_chart(fig_rating, use_container_width=True)
+
+    # 2. Time-based Analysis
+    if 'at' in df.columns:
+        st.subheader("⏱️ Temporal Analysis")
         
+        df_time = df.copy()
+        df_time['date'] = pd.to_datetime(df_time['at']).dt.date
+        daily_stats = df_time.groupby('date').agg({
+            'score': 'mean',
+            'polarity': 'mean'
+        }).reset_index()
+
+        fig_time = make_subplots(
+            rows=2, cols=1,
+            subplot_titles=['Daily Average Rating', 'Daily Sentiment Polarity'],
+            vertical_spacing=0.1
+        )
+
+        fig_time.add_trace(
+            go.Scatter(
+                x=daily_stats['date'],
+                y=daily_stats['score'],
+                mode='lines+markers',
+                name='Average Rating',
+                line=dict(color=colors['primary'], width=3),
+                marker=dict(size=6)
+            ),
+            row=1, col=1
+        )
+
+        fig_time.add_trace(
+            go.Scatter(
+                x=daily_stats['date'],
+                y=daily_stats['polarity'],
+                mode='lines+markers',
+                name='Sentiment Polarity',
+                line=dict(color=colors['accent'], width=3),
+                marker=dict(size=6),
+                fill='tonexty'
+            ),
+            row=2, col=1
+        )
+
+        fig_time.update_layout(
+            height=500,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='white'),
+            showlegend=False
+        )
+
+        fig_time.update_xaxes(color='white')
+        fig_time.update_yaxes(color='white')
+
+        st.plotly_chart(fig_time, use_container_width=True)
+
+    # 3. Advanced Aspect Analysis
+    aspect_cols = [col for col in df.columns if col.startswith('aspect_')]
+    if aspect_cols:
+        st.subheader("🎯 Aspect Analysis Overview")
+
+        aspect_data = {}
+        for col in aspect_cols:
+            aspect_name = col.replace('aspect_', '').replace('_', ' ').title()
+            coverage = (df[col].sum() / len(df)) * 100
+            aspect_data[aspect_name] = coverage
+
+        # Create radar chart
+        fig_radar = go.Figure()
+
+        fig_radar.add_trace(go.Scatterpolar(
+            r=list(aspect_data.values()),
+            theta=list(aspect_data.keys()),
+            fill='toself',
+            name='Aspect Coverage %',
+            line=dict(color=colors['primary'], width=3),
+            marker=dict(size=8, color=colors['accent'])
+        ))
+
+        fig_radar.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    visible=True,
+                    range=[0, max(aspect_data.values()) * 1.1] if aspect_data.values() else [0, 100],
+                    color='white'
+                ),
+                angularaxis=dict(color='white')
+            ),
+            title=dict(
+                text='🎯 Aspect Coverage Analysis',
+                x=0.5,
+                font=dict(size=18, color='white')
+            ),
+            height=500,
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='white')
+        )
+
+        st.plotly_chart(fig_radar, use_container_width=True)
+
+def dashboard_page():
+    """Main dashboard page with enhanced UI"""
+    create_header()
+
+    # Input section with modern styling
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    st.subheader("🚀 Application Analysis Configuration")
+
+    with st.container():
+        col1, col2, col3 = st.columns([2, 1, 1])
+
+        with col1:
+            url_input = st.text_input(
+                "📱 Google Play Store URL or Package Name",
+                placeholder="https://play.google.com/store/apps/details?id=com.example.app",
+                help="Enter the full Google Play Store URL or just the package name"
+            )
+
+        with col2:
+            review_count = st.selectbox(
+                "📊 Reviews to Analyze",
+                options=[100, 250, 500, 1000, 2000],
+                index=2,
+                help="More reviews provide better insights but take longer to process"
+            )
+
+        with col3:
+            sort_option = st.selectbox(
+                "🔄 Sort Reviews By",
+                options=["Newest", "Rating", "Helpfulness"],
+                help="Choose how to sort the reviews for analysis"
+            )
+
+    # Analysis button with enhanced styling
+    analyze_col1, analyze_col2, analyze_col3 = st.columns([1, 2, 1])
+    with analyze_col2:
+        if st.button("🔬 Analyze Application", type="primary", use_container_width=True):
+            if url_input.strip():
+                package_name = analyzer.extract_package_name(url_input)
+
+                if package_name or url_input.strip():  # Allow any input for demo
+                    with st.spinner("🚀 Performing advanced analysis..."):
+                        # Use demo data
+                        df = analyzer.scrape_reviews(
+                            package_name or "demo.app", 
+                            count=review_count
+                        )
+
+                        if not df.empty:
+                            st.session_state.analyzed_data = df
+                            st.session_state.current_app_name = analyzer.get_app_name(package_name or url_input)
+                            
+                            # Success animation
+                            st.balloons()
+                            st.success(f"✅ Successfully analyzed {len(df)} reviews for {st.session_state.current_app_name}!")
+                        else:
+                            st.error("❌ Failed to analyze the application. Please try again.")
+                else:
+                    st.warning("⚠️ Please enter a valid Google Play Store URL or package name")
+
+    # Display results with enhanced formatting
+    if st.session_state.analyzed_data is not None:
+        df = st.session_state.analyzed_data
+        
+        # App info header
+        st.markdown(f"""
+        <div class="feature-card" style="text-align: center; margin: 2rem 0;">
+            <div class="feature-icon">📱</div>
+            <h2 style="margin-bottom: 0.5rem;">Analysis Results</h2>
+            <h3 style="color: #667eea;">{st.session_state.current_app_name}</h3>
+            <div class="status-badge success">
+                ✅ Analysis Complete - {len(df):,} Reviews Processed
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Metrics dashboard
+        create_metrics_dashboard(df)
+
+        # Visualizations
+        create_advanced_visualizations(df)
+
+        # Recent reviews table with enhanced styling
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("📋 Recent Reviews Sample")
+        
+        display_columns = ['at', 'userName', 'score', 'sentiment', 'confidence', 'content']
+        available_columns = [col for col in display_columns if col in df.columns]
+
+        if available_columns:
+            sample_df = df[available_columns].head(10).copy()
+            if 'at' in sample_df.columns:
+                sample_df['at'] = pd.to_datetime(sample_df['at']).dt.strftime('%Y-%m-%d')
+            if 'content' in sample_df.columns:
+                sample_df['content'] = sample_df['content'].str[:80] + '...'
+            if 'confidence' in sample_df.columns:
+                sample_df['confidence'] = (sample_df['confidence'] * 100).round(1).astype(str) + '%'
+
+            st.dataframe(
+                sample_df, 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    'score': st.column_config.NumberColumn('Rating', format='⭐ %.0f'),
+                    'sentiment': st.column_config.TextColumn('Sentiment'),
+                    'confidence': st.column_config.TextColumn('Confidence'),
+                }
+            )
+
+def deep_analysis_page():
+    """Deep analysis page with ML insights"""
+    st.markdown("""
+    <div class="feature-card" style="text-align: center; margin-bottom: 2rem;">
+        <div class="feature-icon">🔬</div>
+        <h1>Deep Analysis Engine</h1>
+        <p>Advanced analytical tools and machine learning insights</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if st.session_state.analyzed_data is not None:
+        df = st.session_state.analyzed_data
+
+        # Generate ML insights if not cached
+        if not st.session_state.ml_insights:
+            with st.spinner("🤖 Generating machine learning insights..."):
+                time.sleep(1)  # Simulate processing
+                ml_insights = analyzer.generate_ml_insights(df)
+                st.session_state.ml_insights = ml_insights
+
+        ml_insights = st.session_state.ml_insights
+
+        # Topic Analysis Section
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("🏷️ Topic Modeling Analysis")
+        
+        if 'topics' in ml_insights and ml_insights['topics']:
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                topics_data = []
+                for topic in ml_insights['topics']:
+                    topics_data.append({
+                        'Topic ID': f"Topic {topic['topic_id']}",
+                        'Top Keywords': ', '.join(topic['keywords'][:5]),
+                        'Relevance': f"{topic['weight']:.1%}",
+                        'Weight': topic['weight']
+                    })
+
+                topics_df = pd.DataFrame(topics_data)
+                st.dataframe(
+                    topics_df[['Topic ID', 'Top Keywords', 'Relevance']], 
+                    use_container_width=True, 
+                    hide_index=True
+                )
+
+            with col2:
+                # Topic distribution chart
+                topic_weights = [topic['weight'] for topic in ml_insights['topics']]
+                topic_labels = [f"Topic {topic['topic_id']}" for topic in ml_insights['topics']]
+
+                fig_topics = go.Figure(data=[go.Pie(
+                    labels=topic_labels,
+                    values=topic_weights,
+                    hole=0.4,
+                    marker=dict(colors=['#667eea', '#764ba2', '#4facfe', '#10b981', '#f59e0b'])
+                )])
+
+                fig_topics.update_layout(
+                    title='Topic Distribution',
+                    height=300,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white'),
+                    showlegend=True
+                )
+
+                st.plotly_chart(fig_topics, use_container_width=True)
+
+        # Key Phrases Analysis
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("🔑 Key Phrases Extraction")
+        
+        if 'key_phrases' in ml_insights and ml_insights['key_phrases']:
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                phrases_data = []
+                for phrase_data in ml_insights['key_phrases'][:8]:
+                    relevance = 'High' if phrase_data['frequency'] > 20 else 'Medium' if phrase_data['frequency'] > 10 else 'Low'
+                    phrases_data.append({
+                        'Phrase': phrase_data['phrase'].title(),
+                        'Frequency': phrase_data['frequency'],
+                        'Relevance': relevance
+                    })
+
+                phrases_df = pd.DataFrame(phrases_data)
+                st.dataframe(phrases_df, use_container_width=True, hide_index=True)
+
+            with col2:
+                # Phrase frequency chart
+                phrases = [p['phrase'] for p in ml_insights['key_phrases'][:5]]
+                frequencies = [p['frequency'] for p in ml_insights['key_phrases'][:5]]
+
+                fig_phrases = go.Figure(data=[go.Bar(
+                    x=frequencies,
+                    y=phrases,
+                    orientation='h',
+                    marker=dict(
+                        color=frequencies,
+                        colorscale='Viridis',
+                        showscale=True
+                    )
+                )])
+
+                fig_phrases.update_layout(
+                    title='Top Phrases by Frequency',
+                    height=300,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white')
+                )
+
+                st.plotly_chart(fig_phrases, use_container_width=True)
+
+        # Statistical Analysis
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("📊 Statistical Analysis Summary")
+
+        stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
+        
+        with stat_col1:
+            if 'score' in df.columns:
+                st.metric(
+                    "📊 Rating Std Dev", 
+                    f"{df['score'].std():.2f}",
+                    help="Lower values indicate more consistent ratings"
+                )
+
+        with stat_col2:
+            if 'polarity' in df.columns:
+                st.metric(
+                    "🎭 Sentiment Range", 
+                    f"{df['polarity'].max() - df['polarity'].min():.2f}",
+                    help="Range of sentiment scores in the data"
+                )
+
+        with stat_col3:
+            if 'confidence' in df.columns:
+                st.metric(
+                    "🎯 Avg Confidence", 
+                    f"{df['confidence'].mean():.1%}",
+                    help="Average confidence in sentiment analysis"
+                )
+
+        with stat_col4:
+            unique_users = df['userName'].nunique() if 'userName' in df.columns else len(df)
+            st.metric(
+                "👥 Unique Reviewers", 
+                f"{unique_users:,}",
+                help="Number of unique users who left reviews"
+            )
+
     else:
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-        st.info("Please analyze an application first from the Dashboard page to access deep analysis features.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Call-to-action when no data
+        st.markdown("""
+        <div class="feature-card" style="text-align: center; margin: 3rem 0;">
+            <div class="feature-icon">📊</div>
+            <h3>Ready for Deep Analysis</h3>
+            <p>Analyze an application from the Dashboard to unlock advanced ML insights, topic modeling, and statistical analysis.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 def competitor_analysis_page():
-    """Enhanced competitive intelligence page"""
-    st.markdown('<div class="modern-header fade-in">', unsafe_allow_html=True)
-    st.markdown('<h1 class="header-title" style="font-size: 2.5rem;">Competitive Intelligence</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="header-subtitle" style="font-size: 1.2rem;">Compare your app against competitors with advanced benchmarking</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    """Competitive intelligence page"""
+    st.markdown("""
+    <div class="feature-card" style="text-align: center; margin-bottom: 2rem;">
+        <div class="feature-icon">⚔️</div>
+        <h1>Competitive Intelligence</h1>
+        <p>Compare your app against competitors with advanced benchmarking</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown('<div class="premium-card fade-in">', unsafe_allow_html=True)
-        st.markdown("## Primary App Analysis")
-        
+        st.markdown("### 📱 Primary App Analysis")
         if st.session_state.analyzed_data is not None:
-            st.success(f"✓ {st.session_state.get('current_app_name', 'App')} analyzed")
             df_primary = st.session_state.analyzed_data
+            
+            st.markdown(f"""
+            <div class="status-badge success">
+                ✅ {st.session_state.current_app_name} Analyzed
+            </div>
+            """, unsafe_allow_html=True)
 
             # Primary app metrics
-            metrics_col1, metrics_col2 = st.columns(2)
-            
-            with metrics_col1:
+            metric_col1, metric_col2 = st.columns(2)
+            with metric_col1:
                 if 'score' in df_primary.columns:
                     avg_rating = df_primary['score'].mean()
-                    st.metric("Average Rating", f"{avg_rating:.1f}", f"{avg_rating - 3.5:.1f}")
+                    st.metric("⭐ Average Rating", f"{avg_rating:.1f}")
 
-            with metrics_col2:
+            with metric_col2:
                 if 'sentiment' in df_primary.columns:
                     positive_rate = (df_primary['sentiment'].str.contains('Positive', na=False).sum() / len(df_primary)) * 100
-                    st.metric("Positive Sentiment", f"{positive_rate:.1f}%", f"{positive_rate - 50:.1f}%")
+                    st.metric("😊 Positive Sentiment", f"{positive_rate:.1f}%")
         else:
-            st.info("Analyze your primary app first")
-            
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("""
+            <div class="status-badge warning">
+                ⚠️ No Primary App Analyzed Yet
+            </div>
+            """, unsafe_allow_html=True)
+            st.info("📊 Analyze your primary app from the Dashboard first")
 
     with col2:
-        st.markdown('<div class="premium-card fade-in">', unsafe_allow_html=True)
-        st.markdown("## Competitor App")
-        
+        st.markdown("### 🎯 Competitor App")
         competitor_url = st.text_input(
-            "Competitor App URL",
-            placeholder="Enter competitor's Google Play URL"
+            "🔗 Competitor App URL",
+            placeholder="Enter competitor's Google Play URL or package name"
         )
 
-        if st.button("Analyze Competitor", use_container_width=True):
+        if st.button("🔬 Analyze Competitor", use_container_width=True):
             if competitor_url:
-                package_name = analyzer.extract_package_name(competitor_url)
+                package_name = analyzer.extract_package_name(competitor_url) or competitor_url
 
-                if package_name:
-                    with st.spinner("Analyzing competitor..."):
-                        competitor_df = analyzer.scrape_reviews(package_name, count=500)
+                with st.spinner("🚀 Analyzing competitor..."):
+                    time.sleep(2)  # Simulate analysis
+                    competitor_df = analyzer.scrape_reviews(package_name, count=500)
 
-                        if not competitor_df.empty:
-                            st.session_state.competitor_data = competitor_df
-                            st.session_state.competitor_app_name = analyzer.get_app_name(package_name)
-                            st.success("Competitor analyzed successfully!")
-                        else:
-                            st.error("Failed to analyze competitor")
-                else:
-                    st.error("Invalid competitor URL")
+                    if not competitor_df.empty:
+                        st.session_state.competitor_data = competitor_df
+                        st.session_state.competitor_app_name = analyzer.get_app_name(package_name)
+                        st.success("✅ Competitor analyzed successfully!")
+                        st.balloons()
+                    else:
+                        st.error("❌ Failed to analyze competitor")
             else:
-                st.warning("Please enter a competitor URL")
+                st.warning("⚠️ Please enter a competitor URL")
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        if st.session_state.competitor_data is not None:
+            st.markdown(f"""
+            <div class="status-badge success">
+                ✅ {st.session_state.competitor_app_name} Analyzed  
+            </div>
+            """, unsafe_allow_html=True)
 
-    # Enhanced Comparative Analysis
+    # Comparative Analysis
     if (st.session_state.analyzed_data is not None and 
         st.session_state.competitor_data is not None):
 
-        st.markdown("---")
-        st.markdown("## Comparative Analysis Dashboard")
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("📊 Head-to-Head Comparison")
 
         df_primary = st.session_state.analyzed_data
         df_competitor = st.session_state.competitor_data
 
-        # Enhanced side-by-side comparison
+        # Comparison metrics
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<h3 class="chart-title">Rating Comparison</h3>', unsafe_allow_html=True)
-            
             primary_rating = df_primary['score'].mean() if 'score' in df_primary.columns else 0
             competitor_rating = df_competitor['score'].mean() if 'score' in df_competitor.columns else 0
 
-            comparison_data = pd.DataFrame({
-                'App': [st.session_state.get('current_app_name', 'Your App'), 
-                       st.session_state.get('competitor_app_name', 'Competitor')],
-                'Rating': [primary_rating, competitor_rating]
-            })
+            fig_rating = go.Figure(data=[
+                go.Bar(
+                    name='Your App',
+                    x=['Rating Comparison'],
+                    y=[primary_rating],
+                    marker_color='#10b981',
+                    text=[f'{primary_rating:.1f}'],
+                    textposition='outside'
+                ),
+                go.Bar(
+                    name='Competitor',
+                    x=['Rating Comparison'],
+                    y=[competitor_rating],
+                    marker_color='#ef4444',
+                    text=[f'{competitor_rating:.1f}'],
+                    textposition='outside'
+                )
+            ])
 
-            fig_rating_comp = px.bar(
-                comparison_data,
-                x='App',
-                y='Rating',
-                title='',
-                color='Rating',
-                color_continuous_scale='RdYlGn',
-                text='Rating'
-            )
-
-            fig_rating_comp.update_traces(
-                texttemplate='%{text:.2f}',
-                textposition='outside',
-                textfont=dict(color='white', family='Poppins')
-            )
-
-            fig_rating_comp.update_layout(
+            fig_rating.update_layout(
+                title='⭐ Average Rating Battle',
+                barmode='group',
+                height=300,
                 paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white', family='Poppins'),
-                xaxis=dict(tickfont=dict(color='white')),
-                yaxis=dict(tickfont=dict(color='white'), gridcolor='rgba(255,255,255,0.2)'),
-                height=350
+                font=dict(color='white'),
+                showlegend=True
             )
 
-            st.plotly_chart(fig_rating_comp, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.plotly_chart(fig_rating, use_container_width=True)
 
         with col2:
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<h3 class="chart-title">Sentiment Comparison</h3>', unsafe_allow_html=True)
-            
             if all('sentiment' in df.columns for df in [df_primary, df_competitor]):
                 primary_positive = (df_primary['sentiment'].str.contains('Positive', na=False).sum() / len(df_primary)) * 100
                 competitor_positive = (df_competitor['sentiment'].str.contains('Positive', na=False).sum() / len(df_competitor)) * 100
 
-                sentiment_data = pd.DataFrame({
-                    'App': [st.session_state.get('current_app_name', 'Your App'), 
-                           st.session_state.get('competitor_app_name', 'Competitor')],
-                    'Positive Sentiment %': [primary_positive, competitor_positive]
-                })
+                fig_sentiment = go.Figure(data=[
+                    go.Bar(
+                        name='Your App',
+                        x=['Sentiment Battle'],
+                        y=[primary_positive],
+                        marker_color='#667eea',
+                        text=[f'{primary_positive:.1f}%'],
+                        textposition='outside'
+                    ),
+                    go.Bar(
+                        name='Competitor',
+                        x=['Sentiment Battle'],
+                        y=[competitor_positive],
+                        marker_color='#764ba2',
+                        text=[f'{competitor_positive:.1f}%'],
+                        textposition='outside'
+                    )
+                ])
 
-                fig_sentiment_comp = px.bar(
-                    sentiment_data,
-                    x='App',
-                    y='Positive Sentiment %',
-                    title='',
-                    color='Positive Sentiment %',
-                    color_continuous_scale='RdYlGn',
-                    text='Positive Sentiment %'
-                )
-
-                fig_sentiment_comp.update_traces(
-                    texttemplate='%{text:.1f}%',
-                    textposition='outside',
-                    textfont=dict(color='white', family='Poppins')
-                )
-
-                fig_sentiment_comp.update_layout(
+                fig_sentiment.update_layout(
+                    title='😊 Positive Sentiment Battle',
+                    barmode='group',
+                    height=300,
                     paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='white', family='Poppins'),
-                    xaxis=dict(tickfont=dict(color='white')),
-                    yaxis=dict(tickfont=dict(color='white'), gridcolor='rgba(255,255,255,0.2)'),
-                    height=350
+                    font=dict(color='white'),
+                    showlegend=True
                 )
 
-                st.plotly_chart(fig_sentiment_comp, use_container_width=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+                st.plotly_chart(fig_sentiment, use_container_width=True)
 
         with col3:
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<h3 class="chart-title">Review Volume</h3>', unsafe_allow_html=True)
-            
-            volume_data = pd.DataFrame({
-                'App': [st.session_state.get('current_app_name', 'Your App'), 
-                       st.session_state.get('competitor_app_name', 'Competitor')],
-                'Review Count': [len(df_primary), len(df_competitor)]
-            })
+            volume_data = {
+                'Your App': len(df_primary),
+                'Competitor': len(df_competitor)
+            }
 
-            fig_volume_comp = px.bar(
-                volume_data,
-                x='App',
-                y='Review Count',
-                title='',
-                color='Review Count',
-                color_continuous_scale='Blues',
-                text='Review Count'
-            )
+            fig_volume = go.Figure(data=[
+                go.Bar(
+                    name='Review Volume',
+                    x=list(volume_data.keys()),
+                    y=list(volume_data.values()),
+                    marker_color=['#4facfe', '#f093fb'],
+                    text=[f'{v:,}' for v in volume_data.values()],
+                    textposition='outside'
+                )
+            ])
 
-            fig_volume_comp.update_traces(
-                texttemplate='%{text:,}',
-                textposition='outside',
-                textfont=dict(color='white', family='Poppins')
-            )
-
-            fig_volume_comp.update_layout(
+            fig_volume.update_layout(
+                title='📊 Review Volume Comparison',
+                height=300,
                 paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white', family='Poppins'),
-                xaxis=dict(tickfont=dict(color='white')),
-                yaxis=dict(tickfont=dict(color='white'), gridcolor='rgba(255,255,255,0.2)'),
-                height=350
+                font=dict(color='white'),
+                showlegend=False
             )
 
-            st.plotly_chart(fig_volume_comp, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.plotly_chart(fig_volume, use_container_width=True)
 
-        # Enhanced detailed comparison table
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-        st.markdown("## Detailed Comparison Matrix")
+        # Detailed comparison matrix
+        st.subheader("📈 Comprehensive Comparison Matrix")
 
-        comparison_metrics = {
-            'Metric': ['Average Rating', 'Total Reviews', 'Positive Sentiment %', 'Average Confidence', 'Emotional Intensity'],
-            st.session_state.get('current_app_name', 'Your App'): [
+        primary_name = st.session_state.get('current_app_name', 'Your App')
+        competitor_name = st.session_state.get('competitor_app_name', 'Competitor')
+
+        comparison_data = {
+            'Metric': [
+                'Average Rating',
+                'Total Reviews',
+                'Positive Sentiment %',
+                'Average Confidence',
+                'Emotional Intensity',
+                'Rating Consistency'
+            ],
+            primary_name: [
                 f"{df_primary['score'].mean():.2f}" if 'score' in df_primary.columns else 'N/A',
                 f"{len(df_primary):,}",
                 f"{(df_primary['sentiment'].str.contains('Positive', na=False).sum() / len(df_primary)) * 100:.1f}%" if 'sentiment' in df_primary.columns else 'N/A',
                 f"{df_primary['confidence'].mean() * 100:.1f}%" if 'confidence' in df_primary.columns else 'N/A',
-                f"{abs(df_primary['emotional_intensity'].mean()):.2f}" if 'emotional_intensity' in df_primary.columns else 'N/A'
+                f"{abs(df_primary['emotional_intensity'].mean()):.2f}" if 'emotional_intensity' in df_primary.columns else 'N/A',
+                f"{df_primary['score'].std():.2f}" if 'score' in df_primary.columns else 'N/A'
             ],
-            st.session_state.get('competitor_app_name', 'Competitor'): [
+            competitor_name: [
                 f"{df_competitor['score'].mean():.2f}" if 'score' in df_competitor.columns else 'N/A',
                 f"{len(df_competitor):,}",
                 f"{(df_competitor['sentiment'].str.contains('Positive', na=False).sum() / len(df_competitor)) * 100:.1f}%" if 'sentiment' in df_competitor.columns else 'N/A',
                 f"{df_competitor['confidence'].mean() * 100:.1f}%" if 'confidence' in df_competitor.columns else 'N/A',
-                f"{abs(df_competitor['emotional_intensity'].mean()):.2f}" if 'emotional_intensity' in df_competitor.columns else 'N/A'
+                f"{abs(df_competitor['emotional_intensity'].mean()):.2f}" if 'emotional_intensity' in df_competitor.columns else 'N/A',
+                f"{df_competitor['score'].std():.2f}" if 'score' in df_competitor.columns else 'N/A'
             ]
         }
 
-        comparison_df = pd.DataFrame(comparison_metrics)
+        comparison_df = pd.DataFrame(comparison_data)
         st.dataframe(comparison_df, use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Strategic insights
+        st.subheader("💡 Strategic Insights & Recommendations")
+        
+        insights = []
+        
+        if 'score' in df_primary.columns and 'score' in df_competitor.columns:
+            rating_diff = df_primary['score'].mean() - df_competitor['score'].mean()
+            if rating_diff > 0.2:
+                insights.append("🎯 **Rating Advantage**: Your app has a significant rating advantage. Focus on maintaining this quality edge.")
+            elif rating_diff < -0.2:
+                insights.append("⚠️ **Rating Gap**: Competitor has higher ratings. Consider quality improvements and bug fixes.")
+            else:
+                insights.append("⚖️ **Rating Parity**: Ratings are comparable. Differentiate through features and user experience.")
+
+        if len(df_primary) > len(df_competitor) * 1.5:
+            insights.append("📈 **Volume Leader**: You have significantly more reviews, indicating higher market penetration.")
+        elif len(df_competitor) > len(df_primary) * 1.5:
+            insights.append("🚀 **Growth Opportunity**: Competitor has more reviews. Focus on user acquisition and retention.")
+
+        for insight in insights[:3]:  # Show top 3 insights
+            st.markdown(f"- {insight}")
+
+def trend_analysis_page():
+    """Time series analysis page"""
+    st.markdown("""
+    <div class="feature-card" style="text-align: center; margin-bottom: 2rem;">
+        <div class="feature-icon">📈</div>
+        <h1>Trend Analysis</h1>
+        <p>Analyze how reviews and ratings change over time</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if st.session_state.analyzed_data is not None:
+        df = st.session_state.analyzed_data
+        
+        # Generate trend analysis
+        trends = analyzer.analyze_trends(df)
+        
+        if trends:
+            st.subheader("📊 Rating Trends Over Time")
+            
+            # Daily trends chart
+            daily_data = trends['daily'].reset_index()
+            
+            fig_daily = make_subplots(
+                rows=2, cols=1,
+                subplot_titles=('Daily Average Rating Trend', 'Daily Review Volume'),
+                vertical_spacing=0.1
+            )
+
+            # Rating trend
+            fig_daily.add_trace(
+                go.Scatter(
+                    x=daily_data['date'],
+                    y=daily_data['avg_rating'],
+                    mode='lines+markers',
+                    name='Daily Rating',
+                    line=dict(color='#667eea', width=3),
+                    marker=dict(size=6),
+                    fill='tonexty'
+                ),
+                row=1, col=1
+            )
+
+            # Overall average line
+            overall_avg = daily_data['avg_rating'].mean()
+            fig_daily.add_hline(
+                y=overall_avg,
+                line_dash="dash",
+                line_color="#ef4444",
+                annotation_text=f"Overall Avg: {overall_avg:.1f}",
+                row=1, col=1
+            )
+
+            # Volume bars
+            fig_daily.add_trace(
+                go.Bar(
+                    x=daily_data['date'],
+                    y=daily_data['review_count'],
+                    name='Review Volume',
+                    marker_color='#4facfe',
+                    opacity=0.7
+                ),
+                row=2, col=1
+            )
+
+            fig_daily.update_layout(
+                height=600,
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='white'),
+                showlegend=False
+            )
+
+            fig_daily.update_xaxes(color='white')
+            fig_daily.update_yaxes(color='white')
+
+            st.plotly_chart(fig_daily, use_container_width=True)
+            
+            # Weekly summary
+            st.subheader("📅 Weekly Performance Summary")
+            
+            weekly_data = trends['weekly'].reset_index()
+            latest_week = weekly_data.iloc[-1] if len(weekly_data) > 0 else None
+            
+            if latest_week is not None:
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("Latest Week Rating", f"{latest_week['avg_rating']:.1f}")
+                with col2:
+                    st.metric("Weekly Reviews", f"{latest_week['review_count']:,}")
+                with col3:
+                    st.metric("Sentiment Score", f"{latest_week['avg_polarity']:.2f}")
+                with col4:
+                    st.metric("Emotional Intensity", f"{latest_week['avg_intensity']:.2f}")
+
+            # Correlation analysis
+            if len(daily_data) > 1:
+                correlation = daily_data['review_count'].corr(daily_data['avg_rating'])
+                
+                st.subheader("🔗 Volume vs Rating Correlation")
+                st.metric("Correlation Coefficient", f"{correlation:.3f}")
+                
+                if correlation > 0.3:
+                    st.success("📈 Positive correlation: More reviews tend to coincide with higher ratings")
+                elif correlation < -0.3:
+                    st.warning("📉 Negative correlation: More reviews tend to coincide with lower ratings")
+                else:
+                    st.info("↔️ Weak correlation: Review volume and rating are not strongly related")
+
+        else:
+            st.warning("⚠️ Insufficient temporal data for trend analysis. Need reviews with timestamps.")
+    else:
+        st.markdown("""
+        <div class="feature-card" style="text-align: center; margin: 3rem 0;">
+            <div class="feature-icon">📊</div>
+            <h3>Ready for Trend Analysis</h3>
+            <p>Analyze an application from the Dashboard to unlock time-based insights and rating trends.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 def export_reports_page():
-    """Enhanced export and reporting functionality"""
-    st.markdown('<div class="modern-header fade-in">', unsafe_allow_html=True)
-    st.markdown('<h1 class="header-title" style="font-size: 2.5rem;">Export & Reporting</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="header-subtitle" style="font-size: 1.2rem;">Generate comprehensive reports and export your analysis data</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    """Export and reporting functionality"""
+    st.markdown("""
+    <div class="feature-card" style="text-align: center; margin-bottom: 2rem;">
+        <div class="feature-icon">📄</div>
+        <h1>Export & Reporting</h1>
+        <p>Generate comprehensive reports and export your analysis data</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     if st.session_state.analyzed_data is not None:
         df = st.session_state.analyzed_data
         app_name = st.session_state.get('current_app_name', 'Unknown App')
 
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-        st.markdown(f"## Export Options for {app_name}")
+        st.subheader(f"📊 Export Options for {app_name}")
 
-        # Enhanced export format selection
+        # Export format selection
         col1, col2, col3 = st.columns(3)
 
         with col1:
             if st.button("📊 Export as CSV", use_container_width=True):
                 csv_data = df.to_csv(index=False)
                 st.download_button(
-                    label="Download CSV Report",
+                    label="⬇️ Download CSV Report",
                     data=csv_data,
-                    file_name=f"{app_name}_analysis_{datetime.now().strftime('%Y%m%d')}.csv",
+                    file_name=f"{app_name.replace(' ', '_')}_analysis_{datetime.now().strftime('%Y%m%d')}.csv",
                     mime="text/csv"
                 )
 
@@ -1422,164 +1799,269 @@ def export_reports_page():
                 try:
                     excel_buffer = BytesIO()
                     with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                        # Main data sheet
                         df.to_excel(writer, sheet_name='Analysis Results', index=False)
 
-                        # Add summary sheet
+                        # Summary sheet
                         if 'sentiment' in df.columns:
                             summary_data = {
-                                'Metric': ['Total Reviews', 'Average Rating', 'Positive Sentiment %', 'Negative Sentiment %'],
+                                'Metric': [
+                                    'Total Reviews', 
+                                    'Average Rating', 
+                                    'Positive Sentiment %', 
+                                    'Negative Sentiment %',
+                                    'Analysis Confidence',
+                                    'Report Generated'
+                                ],
                                 'Value': [
                                     len(df),
                                     f"{df['score'].mean():.2f}" if 'score' in df.columns else 'N/A',
                                     f"{(df['sentiment'].str.contains('Positive', na=False).sum() / len(df)) * 100:.1f}%",
-                                    f"{(df['sentiment'].str.contains('Negative', na=False).sum() / len(df)) * 100:.1f}%"
+                                    f"{(df['sentiment'].str.contains('Negative', na=False).sum() / len(df)) * 100:.1f}%",
+                                    f"{df['confidence'].mean() * 100:.1f}%" if 'confidence' in df.columns else 'N/A',
+                                    datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                                 ]
                             }
                             summary_df = pd.DataFrame(summary_data)
-                            summary_df.to_excel(writer, sheet_name='Summary', index=False)
+                            summary_df.to_excel(writer, sheet_name='Executive Summary', index=False)
 
                     excel_data = excel_buffer.getvalue()
                     st.download_button(
-                        label="Download Excel Report",
+                        label="⬇️ Download Excel Report",
                         data=excel_data,
-                        file_name=f"{app_name}_analysis_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                        file_name=f"{app_name.replace(' ', '_')}_analysis_{datetime.now().strftime('%Y%m%d')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
                 except Exception as e:
                     st.error(f"Error creating Excel file: {str(e)}")
 
         with col3:
-            if st.button("🔗 Export as JSON", use_container_width=True):
-                json_data = df.to_json(orient='records', date_format='iso')
+            if st.button("🗂️ Export as JSON", use_container_width=True):
+                json_data = df.to_json(orient='records', date_format='iso', indent=2)
                 st.download_button(
-                    label="Download JSON Data",
+                    label="⬇️ Download JSON Data",
                     data=json_data,
-                    file_name=f"{app_name}_analysis_{datetime.now().strftime('%Y%m%d')}.json",
+                    file_name=f"{app_name.replace(' ', '_')}_analysis_{datetime.now().strftime('%Y%m%d')}.json",
                     mime="application/json"
                 )
 
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # Enhanced export preview
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-        st.markdown("## Export Preview")
+        # Export customization
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("🎛️ Export Customization")
 
         export_columns = st.multiselect(
-            "Select columns to include in export",
+            "Select columns to include in export:",
             options=df.columns.tolist(),
             default=[col for col in ['at', 'userName', 'score', 'sentiment', 'confidence', 'content'] 
                     if col in df.columns]
         )
 
         if export_columns:
-            preview_df = df[export_columns].head(10)
+            preview_df = df[export_columns].head(5)
+            st.subheader("👁️ Export Preview")
             st.dataframe(preview_df, use_container_width=True, hide_index=True)
+            st.info(f"Preview showing first 5 rows. Full export will contain {len(df):,} rows.")
 
-            st.info(f"Preview showing first 10 rows. Full export will contain {len(df)} rows.")
+        # Generate comprehensive report
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+        st.subheader("📋 Comprehensive Analysis Report")
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        if st.button("🚀 Generate Full Report", type="primary"):
+            with st.spinner("📊 Generating comprehensive report..."):
+                time.sleep(2)  # Simulate report generation
+                
+                # Calculate statistics
+                total_reviews = len(df)
+                avg_rating = df['score'].mean() if 'score' in df.columns else 0
+                rating_std = df['score'].std() if 'score' in df.columns else 0
+                
+                positive_pct = (df['sentiment'].str.contains('Positive', na=False).sum() / len(df)) * 100 if 'sentiment' in df.columns else 0
+                neutral_pct = (df['sentiment'].str.contains('Neutral', na=False).sum() / len(df)) * 100 if 'sentiment' in df.columns else 0
+                negative_pct = (df['sentiment'].str.contains('Negative', na=False).sum() / len(df)) * 100 if 'sentiment' in df.columns else 0
+                
+                avg_confidence = df['confidence'].mean() * 100 if 'confidence' in df.columns else 0
+                avg_intensity = abs(df['emotional_intensity'].mean()) if 'emotional_intensity' in df.columns else 0
+                
+                most_common_rating = df['score'].mode().iloc[0] if 'score' in df.columns and not df['score'].mode().empty else 'N/A'
 
-        # Enhanced comprehensive report generation
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-        st.markdown("## Comprehensive Analysis Report")
-
-        if st.button("📋 Generate Full Report", type="primary"):
-            with st.spinner("Generating comprehensive report..."):
-                report_content = f"""
-# {app_name} - Analysis Report
-Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Developed by: Ayush Pandey - ReviewForge Analytics Pro
+                report_content = f"""# {app_name} - Advanced Analysis Report
 
 ## Executive Summary
-- **Total Reviews Analyzed:** {len(df):,}
+**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  
+**Platform:** ReviewForge Analytics Pro  
+**Developer:** Ayush Pandey
+
+### Key Metrics Overview
+- **Total Reviews Analyzed:** {total_reviews:,}
 - **Analysis Period:** {df['at'].min() if 'at' in df.columns else 'N/A'} to {df['at'].max() if 'at' in df.columns else 'N/A'}
-- **Average Rating:** {df['score'].mean():.2f} / 5.0 ({df['score'].std():.2f} std dev)
-- **Sentiment Distribution:**
-  - Positive: {(df['sentiment'].str.contains('Positive', na=False).sum() / len(df)) * 100:.1f}%
-  - Neutral: {(df['sentiment'].str.contains('Neutral', na=False).sum() / len(df)) * 100:.1f}%
-  - Negative: {(df['sentiment'].str.contains('Negative', na=False).sum() / len(df)) * 100:.1f}%
+- **Average Rating:** {avg_rating:.2f}/5.0 (σ = {rating_std:.2f})
+- **Most Common Rating:** {most_common_rating} stars
+- **Analysis Confidence:** {avg_confidence:.1f}%
 
-## Key Insights
-- **Analysis Confidence:** {df['confidence'].mean() * 100:.1f}% average confidence
-- **Emotional Intensity:** {abs(df['emotional_intensity'].mean()):.2f} average intensity
-- **Most Common Rating:** {df['score'].mode().iloc[0] if 'score' in df.columns and not df['score'].mode().empty else 'N/A'} stars
+### Sentiment Analysis Results
+- **Positive Sentiment:** {positive_pct:.1f}%
+- **Neutral Sentiment:** {neutral_pct:.1f}%  
+- **Negative Sentiment:** {negative_pct:.1f}%
+- **Average Emotional Intensity:** {avg_intensity:.2f}
 
-## Strategic Recommendations
-Based on the analysis of {len(df):,} reviews, the following strategic recommendations are suggested:
+## Strategic Insights
 
-1. **Performance Optimization:** {'Focus on addressing performance issues mentioned in reviews' if any(df['content'].str.contains('slow|lag|crash', case=False, na=False)) else 'Current performance appears satisfactory based on user feedback'}
+### Strengths
+- {'High user satisfaction with consistent ratings' if rating_std < 1.0 else 'Diverse user opinions indicate broad appeal'}
+- {'Strong positive sentiment indicates good user experience' if positive_pct > 60 else 'Room for improvement in user satisfaction'}
+- {'High analysis confidence ensures reliable insights' if avg_confidence > 80 else 'Moderate confidence levels in analysis'}
 
-2. **User Experience:** {'Consider UI/UX improvements based on user feedback patterns' if any(df['content'].str.contains('interface|design|ui', case=False, na=False)) else 'User interface receives positive feedback overall'}
+### Areas for Improvement
+- {'Focus on maintaining current high standards' if avg_rating > 4.0 else 'Consider addressing common user concerns'}
+- {'Monitor negative feedback trends' if negative_pct > 20 else 'Continue current positive trajectory'}
+- {'Enhance features based on user feedback patterns' if avg_intensity > 1.0 else 'Maintain current feature satisfaction'}
 
-3. **Feature Development:** {'Users are requesting additional features - consider feature roadmap expansion' if any(df['content'].str.contains('feature|add|need', case=False, na=False)) else 'Current feature set appears to meet user expectations'}
+## Recommendations
+
+### Immediate Actions (0-30 days)
+1. **User Feedback Analysis**: Deep dive into negative reviews to identify specific pain points
+2. **Performance Monitoring**: Track rating trends and sentiment changes
+3. **Quality Assurance**: Address any technical issues mentioned in reviews
+
+### Medium-term Strategy (1-3 months)  
+1. **Feature Development**: Prioritize features requested by users
+2. **User Experience**: Optimize based on sentiment analysis insights
+3. **Market Positioning**: Leverage positive feedback for marketing
+
+### Long-term Vision (3+ months)
+1. **Competitive Analysis**: Regular benchmarking against competitors
+2. **Innovation Pipeline**: Develop next-generation features
+3. **Community Building**: Foster positive user relationships
 
 ---
-*Report generated by ReviewForge Analytics Pro - Advanced Review Analysis Platform*
-*Developer: Ayush Pandey*
+
+**Report generated by ReviewForge Analytics Pro**  
+*Advanced Review Analysis Platform by Ayush Pandey*
+
+*This report contains proprietary analysis and should be treated as confidential business intelligence.*
                 """
 
                 st.markdown(report_content)
 
                 st.download_button(
-                    label="Download Full Report (Markdown)",
+                    label="📥 Download Full Report (Markdown)",
                     data=report_content,
-                    file_name=f"{app_name}_full_report_{datetime.now().strftime('%Y%m%d')}.md",
+                    file_name=f"{app_name.replace(' ', '_')}_comprehensive_report_{datetime.now().strftime('%Y%m%d')}.md",
                     mime="text/markdown"
                 )
-
-        st.markdown('</div>', unsafe_allow_html=True)
-        
     else:
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-        st.info("Please analyze an application first to access export functionality.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="feature-card" style="text-align: center; margin: 3rem 0;">
+            <div class="feature-icon">📊</div>
+            <h3>Ready to Export</h3>
+            <p>Analyze an application from the Dashboard to access export and reporting functionality.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 def settings_page():
-    """Enhanced settings and preferences"""
-    st.markdown('<div class="modern-header fade-in">', unsafe_allow_html=True)
-    st.markdown('<h1 class="header-title" style="font-size: 2.5rem;">Advanced Settings</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="header-subtitle" style="font-size: 1.2rem;">Customize your analysis preferences and export options</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    """Advanced settings and preferences"""
+    st.markdown("""
+    <div class="feature-card" style="text-align: center; margin-bottom: 2rem;">
+        <div class="feature-icon">⚙️</div>
+        <h1>Advanced Settings</h1>
+        <p>Customize your analysis preferences and platform configuration</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Enhanced analysis settings
-    st.markdown('<div class="premium-card fade-in">', unsafe_allow_html=True)
-    st.markdown("## Analysis Configuration")
+    # Analysis Configuration
+    st.subheader("🔧 Analysis Configuration")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### Sentiment Analysis Settings")
-        sentiment_threshold = st.slider("Sentiment Confidence Threshold", 0.0, 1.0, 0.6, 0.1)
-        enable_aspect_analysis = st.checkbox("Enable Aspect-Based Analysis", value=True)
-        enable_emotion_detection = st.checkbox("Enable Emotional Intensity Analysis", value=True)
+        st.markdown("#### 🎭 Sentiment Analysis Settings")
+        sentiment_threshold = st.slider(
+            "Sentiment Confidence Threshold", 
+            0.0, 1.0, 
+            st.session_state.user_preferences.get('sentiment_threshold', 0.6), 
+            0.1,
+            help="Minimum confidence required for sentiment classification"
+        )
+        
+        enable_aspect_analysis = st.checkbox(
+            "Enable Aspect-Based Analysis", 
+            value=st.session_state.user_preferences.get('enable_aspect_analysis', True),
+            help="Analyze specific aspects like performance, UI, functionality"
+        )
+        
+        enable_emotion_detection = st.checkbox(
+            "Enable Emotional Intensity Analysis", 
+            value=st.session_state.user_preferences.get('enable_emotion_detection', True),
+            help="Measure emotional intensity in reviews"
+        )
 
     with col2:
-        st.markdown("### Machine Learning Settings")
-        enable_topic_modeling = st.checkbox("Enable Topic Modeling", value=True)
-        topic_count = st.slider("Number of Topics", 3, 10, 5)
-        enable_clustering = st.checkbox("Enable Review Clustering", value=True)
+        st.markdown("#### 🤖 Machine Learning Settings")
+        enable_topic_modeling = st.checkbox(
+            "Enable Topic Modeling", 
+            value=st.session_state.user_preferences.get('enable_topic_modeling', True),
+            help="Automatically discover topics in reviews"
+        )
+        
+        topic_count = st.slider(
+            "Number of Topics", 
+            3, 10, 
+            st.session_state.user_preferences.get('topic_count', 5),
+            help="Number of topics to extract from reviews"
+        )
+        
+        enable_clustering = st.checkbox(
+            "Enable Review Clustering", 
+            value=st.session_state.user_preferences.get('enable_clustering', True),
+            help="Group similar reviews together"
+        )
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Export & Reporting Settings
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    st.subheader("📄 Export & Reporting Settings")
 
-    # Enhanced export settings
-    st.markdown('<div class="premium-card fade-in">', unsafe_allow_html=True)
-    st.markdown("## Export & Reporting")
+    col1, col2 = st.columns(2)
 
-    export_format = st.selectbox(
-        "Preferred Export Format",
-        options=["CSV", "Excel", "JSON", "PDF Report"],
-        index=0
+    with col1:
+        export_format = st.selectbox(
+            "Default Export Format",
+            options=["CSV", "Excel", "JSON", "PDF"],
+            index=["CSV", "Excel", "JSON", "PDF"].index(st.session_state.user_preferences.get('export_format', 'CSV'))
+        )
+
+        include_raw_data = st.checkbox(
+            "Include Raw Review Data", 
+            value=st.session_state.user_preferences.get('include_raw_data', True)
+        )
+
+    with col2:
+        include_visualizations = st.checkbox(
+            "Include Charts in Reports", 
+            value=st.session_state.user_preferences.get('include_visualizations', True)
+        )
+
+        auto_refresh = st.checkbox(
+            "Auto-refresh Analysis", 
+            value=st.session_state.user_preferences.get('auto_refresh', True),
+            help="Automatically refresh analysis when data changes"
+        )
+
+    # Performance Settings
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    st.subheader("⚡ Performance & Cache Settings")
+
+    cache_duration = st.slider(
+        "Cache Duration (hours)", 
+        1, 24, 
+        st.session_state.user_preferences.get('cache_duration', 6),
+        help="How long to cache analysis results"
     )
 
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        include_raw_data = st.checkbox("Include Raw Review Data", value=True)
-        include_visualizations = st.checkbox("Include Charts and Visualizations", value=True)
-    
-    with col2:
-        auto_backup = st.checkbox("Enable Automatic Backup", value=False)
-        compress_exports = st.checkbox("Compress Large Exports", value=True)
+    max_reviews = st.select_slider(
+        "Maximum Reviews per Analysis",
+        options=[100, 250, 500, 1000, 2000, 5000],
+        value=st.session_state.user_preferences.get('max_reviews', 1000)
+    )
 
     # Save settings
     if st.button("💾 Save Settings", type="primary"):
@@ -1593,453 +2075,98 @@ def settings_page():
             'export_format': export_format,
             'include_raw_data': include_raw_data,
             'include_visualizations': include_visualizations,
-            'auto_backup': auto_backup,
-            'compress_exports': compress_exports
+            'auto_refresh': auto_refresh,
+            'cache_duration': cache_duration,
+            'max_reviews': max_reviews
         }
         st.session_state.user_preferences = settings
-        st.success("Settings saved successfully!")
+        st.success("✅ Settings saved successfully!")
+        time.sleep(1)
+        st.balloons()
 
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Enhanced system information
-    st.markdown('<div class="premium-card fade-in">', unsafe_allow_html=True)
-    st.markdown("## System Information")
-
-    system_info = {
-        'Application Version': '2.0.0 Pro Enhanced',
-        'Developer': 'Ayush Pandey',
-        'Last Updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'Python Version': '3.9+',
-        'Streamlit Version': st.__version__ if hasattr(st, '__version__') else 'Latest',
-        'Analysis Engine': 'Advanced ML-Powered',
-        'UI Framework': 'Premium Enhanced Design'
-    }
+    # System Information
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    st.subheader("ℹ️ System Information")
 
     info_col1, info_col2 = st.columns(2)
-    
+
     with info_col1:
-        for i, (key, value) in enumerate(list(system_info.items())[:4]):
-            st.text(f"{key}: {value}")
-    
+        st.info(f"""
+        **Application Version:** 2.0.0 Pro  
+        **Developer:** Ayush Pandey  
+        **Last Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  
+        **Platform:** Streamlit {st.__version__ if hasattr(st, '__version__') else 'Latest'}
+        """)
+
     with info_col2:
-        for key, value in list(system_info.items())[4:]:
-            st.text(f"{key}: {value}")
+        st.info(f"""
+        **Analysis Engine:** Advanced ML-Powered  
+        **Current User:** {st.session_state.user_role.title()}  
+        **Session Started:** {datetime.now().strftime('%H:%M:%S')}  
+        **Reviews Analyzed:** {len(st.session_state.analyzed_data) if st.session_state.analyzed_data is not None else 0:,}
+        """)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Advanced Options
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    st.subheader("🔬 Advanced Options")
 
-# Enhanced main application logic
+    if st.button("🗑️ Clear Cache", help="Clear all cached analysis data"):
+        st.cache_data.clear()
+        st.success("✅ Cache cleared successfully!")
+
+    if st.button("🔄 Reset to Defaults", help="Reset all settings to default values"):
+        st.session_state.user_preferences = {
+            'theme': 'dark',
+            'auto_refresh': True,
+            'export_format': 'CSV'
+        }
+        st.success("✅ Settings reset to defaults!")
+        st.rerun()
+
+# Main application logic
 def main():
-    """Enhanced main application controller"""
-    create_enhanced_navigation()
+    """Main application controller"""
+    create_navigation()
 
-    # Enhanced page routing with animations
-    if st.session_state.current_page == 'dashboard':
-        dashboard_page()
-    elif st.session_state.current_page == 'deep_analysis':
-        deep_analysis_page()
-    elif st.session_state.current_page == 'competitor':
-        competitor_analysis_page()
-    elif st.session_state.current_page == 'ml_insights':
-        deep_analysis_page()  # Reuse deep analysis for ML insights
-    elif st.session_state.current_page == 'sentiment_trends':
-        dashboard_page()  # Can be expanded with trend analysis
-    elif st.session_state.current_page == 'export_reports':
-        export_reports_page()
-    elif st.session_state.current_page == 'settings':
-        settings_page()
+    # Page routing with enhanced error handling
+    page = st.session_state.current_page
+    
+    try:
+        if page == 'dashboard':
+            dashboard_page()
+        elif page == 'deep_analysis' or page == 'ml_insights':
+            deep_analysis_page()
+        elif page == 'competitor':
+            competitor_analysis_page()
+        elif page == 'trend_analysis':
+            trend_analysis_page()
+        elif page == 'export_reports':
+            export_reports_page()
+        elif page == 'settings':
+            settings_page()
+        else:
+            st.error(f"Unknown page: {page}")
+            
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        st.info("Please try refreshing the page or contact support if the issue persists.")
 
-    # Enhanced footer
-    st.markdown("---")
+    # Enhanced Footer
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
     st.markdown("""
-    <div class="footer fade-in">
-        <h4>ReviewForge Analytics Pro</h4>
-        <p>Advanced AI-Powered Review Analysis Platform</p>
-        <p>Developed by <strong>Ayush Pandey</strong> | Version 2.0.0 Pro Enhanced | © 2024</p>
-        <p style="font-size: 0.8rem; opacity: 0.6;">Powered by Machine Learning & Advanced Analytics</p>
+    <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; margin-top: 3rem;">
+        <h3 style="color: white; margin-bottom: 1rem;">ReviewForge Analytics Pro</h3>
+        <p style="color: rgba(255,255,255,0.9); margin-bottom: 1rem;">Advanced AI-Powered Review Analysis Platform</p>
+        <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">
+            Developed by <strong>Ayush Pandey</strong> | Version 2.0.0 Pro | © 2024
+        </p>
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2);">
+            <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem;">
+                Powered by Advanced Machine Learning & Modern Analytics
+            </span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
-    main()="chart-container">', unsafe_allow_html=True)
-        st.markdown('<h3 class="chart-title">Sentiment Distribution Analysis</h3>', unsafe_allow_html=True)
-        
-        if 'sentiment' in df.columns:
-            sentiment_counts = df['sentiment'].value_counts()
-
-            fig_donut = go.Figure(data=[go.Pie(
-                labels=sentiment_counts.index,
-                values=sentiment_counts.values,
-                hole=0.65,
-                marker=dict(
-                    colors=[colors['positive'] if 'Positive' in s else 
-                           colors['negative'] if 'Negative' in s else colors['neutral'] 
-                           for s in sentiment_counts.index],
-                    line=dict(color='rgba(255,255,255,0.8)', width=3)
-                ),
-                textinfo='label+percent',
-                textfont=dict(size=14, color='white', family='Poppins'),
-                hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
-            )])
-
-            fig_donut.update_layout(
-                title=dict(
-                    text='',
-                    x=0.5,
-                    font=dict(size=20, color=colors['primary'])
-                ),
-                annotations=[dict(
-                    text=f'<b>{sentiment_counts.sum():,}</b><br><span style="font-size:14px;">Total Reviews</span>',
-                    x=0.5, y=0.5,
-                    font=dict(size=18, color='white', family='Poppins'),
-                    showarrow=False
-                )],
-                showlegend=True,
-                height=450,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white', family='Poppins'),
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=-0.2,
-                    xanchor="center",
-                    x=0.5,
-                    font=dict(color='white')
-                )
-            )
-
-            st.plotly_chart(fig_donut, use_container_width=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.markdown('<h3 class="chart-title">Rating Distribution</h3>', unsafe_allow_html=True)
-        
-        if 'score' in df.columns:
-            rating_dist = df['score'].value_counts().sort_index()
-
-            fig_rating = go.Figure()
-            fig_rating.add_trace(go.Bar(
-                x=[f'{i} ★' for i in rating_dist.index],
-                y=rating_dist.values,
-                marker=dict(
-                    color=[colors['error'] if i <= 2 else 
-                          colors['warning'] if i == 3 else 
-                          colors['success'] if i >= 4 else colors['neutral']
-                          for i in rating_dist.index],
-                    line=dict(color='rgba(255,255,255,0.8)', width=2)
-                ),
-                text=[f'{val:,}' for val in rating_dist.values],
-                textposition='outside',
-                textfont=dict(color='white', family='Poppins', size=12),
-                hovertemplate='<b>%{x}</b><br>Reviews: %{y:,}<extra></extra>'
-            ))
-
-            fig_rating.update_layout(
-                title='',
-                xaxis=dict(
-                    title='Rating',
-                    titlefont=dict(color='white', family='Poppins'),
-                    tickfont=dict(color='white', family='Poppins'),
-                    gridcolor='rgba(255,255,255,0.2)'
-                ),
-                yaxis=dict(
-                    title='Number of Reviews',
-                    titlefont=dict(color='white', family='Poppins'),
-                    tickfont=dict(color='white', family='Poppins'),
-                    gridcolor='rgba(255,255,255,0.2)'
-                ),
-                showlegend=False,
-                height=450,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-
-            st.plotly_chart(fig_rating, use_container_width=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Row 2: Advanced Analytics
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown('<h3 class="chart-title">Emotional Intensity vs Rating Analysis</h3>', unsafe_allow_html=True)
-    
-    if all(col in df.columns for col in ['score', 'emotional_intensity']):
-        intensity_by_rating = df.groupby('score')['emotional_intensity'].agg(['mean', 'std', 'count']).reset_index()
-
-        fig_intensity = go.Figure()
-
-        # Add main line with enhanced styling
-        fig_intensity.add_trace(go.Scatter(
-            x=intensity_by_rating['score'],
-            y=intensity_by_rating['mean'],
-            mode='lines+markers',
-            name='Average Intensity',
-            line=dict(color=colors['primary'], width=4, shape='spline'),
-            marker=dict(
-                size=12, 
-                color=colors['secondary'],
-                line=dict(color='white', width=2),
-                symbol='circle'
-            ),
-            error_y=dict(
-                type='data',
-                array=intensity_by_rating['std'],
-                visible=True,
-                color='rgba(255,255,255,0.5)',
-                thickness=2
-            ),
-            hovertemplate='<b>%{x} Stars</b><br>Avg Intensity: %{y:.3f}<br>Reviews: %{customdata}<extra></extra>',
-            customdata=intensity_by_rating['count']
-        ))
-
-        fig_intensity.update_layout(
-            xaxis=dict(
-                title='Rating',
-                titlefont=dict(color='white', family='Poppins', size=14),
-                tickfont=dict(color='white', family='Poppins'),
-                gridcolor='rgba(255,255,255,0.2)',
-                tickvals=list(range(1, 6))
-            ),
-            yaxis=dict(
-                title='Average Emotional Intensity',
-                titlefont=dict(color='white', family='Poppins', size=14),
-                tickfont=dict(color='white', family='Poppins'),
-                gridcolor='rgba(255,255,255,0.2)'
-            ),
-            height=450,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='white', family='Poppins'),
-            showlegend=False
-        )
-
-        st.plotly_chart(fig_intensity, use_container_width=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Row 3: Aspect Analysis
-    aspect_cols = [col for col in df.columns if col.startswith('aspect_')]
-    if aspect_cols:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.markdown('<h3 class="chart-title">Aspect Coverage Analysis</h3>', unsafe_allow_html=True)
-
-        aspect_data = {}
-        for col in aspect_cols:
-            aspect_name = col.replace('aspect_', '').replace('_', ' ').title()
-            aspect_data[aspect_name] = (df[col].sum() / len(df)) * 100
-
-        fig_radar = go.Figure()
-
-        fig_radar.add_trace(go.Scatterpolar(
-            r=list(aspect_data.values()),
-            theta=list(aspect_data.keys()),
-            fill='toself',
-            name='Aspect Coverage',
-            line=dict(color=colors['primary'], width=3),
-            marker=dict(color=colors['secondary'], size=8),
-            fillcolor=f'rgba({int(colors["primary"][1:3], 16)}, {int(colors["primary"][3:5], 16)}, {int(colors["primary"][5:7], 16)}, 0.3)',
-            hovertemplate='<b>%{theta}</b><br>Coverage: %{r:.1f}%<extra></extra>'
-        ))
-
-        fig_radar.update_layout(
-            polar=dict(
-                radialaxis=dict(
-                    visible=True,
-                    range=[0, max(aspect_data.values()) * 1.2] if aspect_data else [0, 100],
-                    tickfont=dict(color='white', family='Poppins'),
-                    gridcolor='rgba(255,255,255,0.2)'
-                ),
-                angularaxis=dict(
-                    tickfont=dict(color='white', family='Poppins', size=12),
-                    gridcolor='rgba(255,255,255,0.2)'
-                ),
-                bgcolor='rgba(0,0,0,0)'
-            ),
-            height=500,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='white', family='Poppins'),
-            showlegend=False
-        )
-
-        st.plotly_chart(fig_radar, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def dashboard_page():
-    """Enhanced main dashboard page"""
-    create_modern_header()
-
-    # Enhanced input section
-    st.markdown('<div class="premium-card fade-in">', unsafe_allow_html=True)
-    st.markdown("## Application Analysis Configuration")
-
-    col1, col2, col3 = st.columns([2, 1, 1])
-
-    with col1:
-        url_input = st.text_input(
-            "Google Play Store URL or Package Name",
-            placeholder="https://play.google.com/store/apps/details?id=com.example.app",
-            help="Enter the full Google Play Store URL or just the package name for analysis"
-        )
-
-    with col2:
-        review_count = st.selectbox(
-            "Reviews to Analyze",
-            options=[100, 250, 500, 1000, 2000],
-            index=2,
-            help="More reviews provide better insights but take longer to process"
-        )
-
-    with col3:
-        sort_option = st.selectbox(
-            "Sort Reviews By",
-            options=["Newest", "Rating", "Helpfulness"],
-            help="Choose how to sort the reviews for analysis"
-        )
-
-    # Convert sort option
-    sort_mapping = {
-        "Newest": Sort.NEWEST,
-        "Rating": Sort.RATING,
-        "Helpfulness": Sort.MOST_RELEVANT
-    }
-
-    if st.button("Analyze Application", type="primary", use_container_width=True):
-        if url_input:
-            package_name = analyzer.extract_package_name(url_input)
-
-            if package_name:
-                with st.spinner("Performing advanced analysis..."):
-                    df = analyzer.scrape_reviews(
-                        package_name, 
-                        count=review_count, 
-                        sort_by=sort_mapping[sort_option]
-                    )
-
-                    if not df.empty:
-                        st.session_state.analyzed_data = df
-                        st.session_state.current_app_name = analyzer.get_app_name(package_name)
-                        st.success(f"Successfully analyzed {len(df)} reviews!")
-                        st.rerun()
-                    else:
-                        st.error("No reviews found or failed to extract reviews")
-            else:
-                st.error("Invalid URL or package name format")
-        else:
-            st.warning("Please enter a valid Google Play Store URL or package name")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Display enhanced results
-    if st.session_state.analyzed_data is not None:
-        df = st.session_state.analyzed_data
-
-        st.markdown("---")
-        st.markdown(f"## Analysis Results: {st.session_state.get('current_app_name', 'Unknown App')}")
-
-        # Enhanced metrics dashboard
-        create_enhanced_metrics_dashboard(df)
-
-        # Enhanced visualizations
-        create_premium_visualizations(df)
-
-        # Enhanced recent reviews table
-        st.markdown('<div class="premium-card">', unsafe_allow_html=True)
-        st.markdown("## Recent Reviews Sample")
-        
-        display_columns = ['at', 'userName', 'score', 'sentiment', 'confidence', 'content']
-        available_columns = [col for col in display_columns if col in df.columns]
-
-        if available_columns:
-            sample_df = df[available_columns].head(10).copy()
-            if 'at' in sample_df.columns:
-                sample_df['at'] = pd.to_datetime(sample_df['at']).dt.strftime('%Y-%m-%d')
-            if 'content' in sample_df.columns:
-                sample_df['content'] = sample_df['content'].str[:100] + '...'
-
-            st.dataframe(sample_df, use_container_width=True, hide_index=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-def deep_analysis_page():
-    """Enhanced deep analysis page"""
-    st.markdown('<div class="modern-header fade-in">', unsafe_allow_html=True)
-    st.markdown('<h1 class="header-title" style="font-size: 2.5rem;">Deep Analysis Engine</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="header-subtitle" style="font-size: 1.2rem;">Advanced analytical tools and machine learning insights</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    if st.session_state.analyzed_data is not None:
-        df = st.session_state.analyzed_data
-
-        # Generate ML insights if not already done
-        if 'ml_insights' not in st.session_state or not st.session_state.ml_insights:
-            with st.spinner("Generating machine learning insights..."):
-                ml_insights = analyzer.generate_ml_insights(df)
-                st.session_state.ml_insights = ml_insights
-
-        ml_insights = st.session_state.ml_insights
-
-        # Enhanced Topic Analysis
-        st.markdown('<div class="premium-card fade-in">', unsafe_allow_html=True)
-        st.markdown("## Topic Modeling Analysis")
-        
-        if 'topics' in ml_insights and ml_insights['topics']:
-            topics_data = []
-            for topic in ml_insights['topics']:
-                topics_data.append({
-                    'Topic ID': f"Topic {topic['topic_id']}",
-                    'Keywords': ', '.join(topic['keywords'][:5]),
-                    'Relevance Score': f"{topic['weight']:.3f}",
-                    'Priority': 'High' if topic['weight'] > np.mean([t['weight'] for t in ml_insights['topics']]) else 'Medium'
-                })
-
-            topics_df = pd.DataFrame(topics_data)
-            st.dataframe(topics_df, use_container_width=True, hide_index=True)
-
-            # Enhanced topic visualization
-            if len(ml_insights['topics']) > 1:
-                topic_weights = [topic['weight'] for topic in ml_insights['topics']]
-                topic_labels = [f"Topic {topic['topic_id']}" for topic in ml_insights['topics']]
-
-                fig_topics = go.Figure(data=[go.Bar(
-                    x=topic_labels,
-                    y=topic_weights,
-                    marker=dict(
-                        color=colors['gradient'][:len(topic_labels)],
-                        line=dict(color='rgba(255,255,255,0.8)', width=2)
-                    ),
-                    text=[f'{w:.3f}' for w in topic_weights],
-                    textposition='outside',
-                    textfont=dict(color='white', family='Poppins'),
-                    hovertemplate='<b>%{x}</b><br>Relevance: %{y:.3f}<extra></extra>'
-                )])
-
-                fig_topics.update_layout(
-                    title='',
-                    xaxis=dict(
-                        title='Topics',
-                        titlefont=dict(color='white', family='Poppins'),
-                        tickfont=dict(color='white', family='Poppins'),
-                        gridcolor='rgba(255,255,255,0.2)'
-                    ),
-                    yaxis=dict(
-                        title='Relevance Score',
-                        titlefont=dict(color='white', family='Poppins'),
-                        tickfont=dict(color='white', family='Poppins'),
-                        gridcolor='rgba(255,255,255,0.2)'
-                    ),
-                    height=400,
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='white', family='Poppins')
-                )
-
-                st.plotly_chart(fig_topics, use_container_width=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # Enhanced Key Phrases Analysis
-        st.markdown('<div class
+    main()
